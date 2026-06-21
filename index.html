@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    
+
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -9,7 +9,7 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GHW</title>
+    <title>Интерактивная Карта Метрополитена</title>
     <style>
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -43,6 +43,7 @@
             user-select: none;
         }
 
+        /* Утолщенные линии метро */
         .metro-line {
             stroke-width: 11;
             fill: none;
@@ -51,6 +52,7 @@
             transition: stroke-width 0.2s ease, filter 0.2s ease;
         }
 
+        /* Стиль станций */
         .station {
             stroke: white;
             transition: r 0.2s ease, stroke-width 0.2s ease;
@@ -71,6 +73,7 @@
             fill: #000;
         }
 
+        /* Оптимально видимый текст (жирный, крупнее, с обводкой) */
         .station-label {
             fill: #111;
             font-size: 16px;
@@ -82,14 +85,16 @@
                 2px -2px 0 #f4f4f4, -2px 2px 0 #f4f4f4, 
                 0 2px 0 #f4f4f4, 0 -2px 0 #f4f4f4, 
                 2px 0 0 #f4f4f4, -2px 0 0 #f4f4f4,
-                0 0 4px #f4f4f4; 
+                0 0 4px #f4f4f4;
         }
 
+        /* Подсветка при наведении */
         .line-highlight {
             stroke-width: 15;
             filter: drop-shadow(0 0 8px rgba(0,0,0,0.3));
         }
 
+        /* Попап */
         #info-panel {
             position: fixed;
             bottom: 20px;
@@ -104,31 +109,12 @@
             border: 1px solid #eee;
         }
 
-        #info-panel h2 {
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 1.3em;
-            color: #222;
-        }
+        #info-panel h2 { margin-top: 0; margin-bottom: 12px; font-size: 1.3em; color: #222; }
+        #info-panel p { margin: 0 0 12px 0; color: #777; font-size: 0.9em; }
 
-        #info-panel p {
-            margin: 0 0 12px 0;
-            color: #777;
-            font-size: 0.9em;
-        }
-
-        .line-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .line-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
+        .line-list { list-style: none; padding: 0; margin: 0; }
+        .line-item { display: flex; align-items: center; margin-bottom: 10px; }
+        
         .line-color-swatch {
             width: 18px;
             height: 18px;
@@ -136,11 +122,7 @@
             margin-right: 12px;
             box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5);
         }
-
-        .line-name {
-            font-weight: 600;
-            color: #444;
-        }
+        .line-name { font-weight: 600; color: #444; }
 
         #close-panel {
             position: absolute;
@@ -151,7 +133,6 @@
             line-height: 1;
             color: #aaa;
         }
-
         #close-panel:hover { color: #333; }
         
         #controls {
@@ -179,11 +160,7 @@
             color: #555;
             transition: all 0.2s;
         }
-        
-        .control-btn:hover {
-            background-color: #f8f8f8;
-            transform: translateY(-2px);
-        }
+        .control-btn:hover { background-color: #f8f8f8; transform: translateY(-2px); }
     </style>
 </head>
 <body>
@@ -195,7 +172,7 @@
     </div>
 
     <div id="map-container">
-        <svg id="metro-svg" viewBox="0 0 1200 1200">
+        <svg id="metro-svg" viewBox="0 0 2160 2160">
             <g id="viewport-group">
                 <g id="lines-layer"></g>
                 <g id="stations-layer"></g>
@@ -211,95 +188,98 @@
     </div>
 
     <script>
-        // --- БАЗА ДАННЫХ СТАНЦИЙ ПО НОВОЙ ТОПОЛОГИИ ИЗ РИСУНКА ---
+        // --- БАЗА ДАННЫХ СТАНЦИЙ ---
         const stationsData = {
-            // Синяя ветка
-            'almaz_shahta_gs': { name: 'Алмазная шахта ГС', x: 300, y: 150, lines: ['blue'], labelPos: 'top' },
-            'downtown_02': { name: 'ДаунТаун 0:2', x: 450, y: 150, lines: ['blue'], labelPos: 'top' },
-            'downtown': { name: 'ДаунТаун', x: 550, y: 150, lines: ['blue', 'purple'], labelPos: 'bottom-left' },
-            'spavn_ni': { name: 'Площадь Спавна Н.И.', x: 550, y: 300, lines: ['blue'], labelPos: 'left' },
-            'sudebnaya': { name: 'Судебная область', x: 650, y: 400, lines: ['blue', 'green'], labelPos: 'bottom' },
+            // Синяя ветка (теперь единственная на ДаунТауне)
+            'almaz_shahta_gs': { name: 'Алмазная шахта ГС', x: 540, y: 270, lines: ['blue'], labelPos: 'top' },
+            'downtown_02': { name: 'ДаунТаун 0:2', x: 756, y: 270, lines: ['blue'], labelPos: 'top' },
+            'downtown': { name: 'ДаунТаун', x: 936, y: 270, lines: ['blue'], labelPos: 'top' },
+            'spavn_ni': { name: 'Площадь Спавна Н.И.', x: 936, y: 630, lines: ['blue'], labelPos: 'left' },
+            'sudebnaya': { name: 'Судебная область', x: 1170, y: 810, lines: ['blue', 'green'], labelPos: 'bottom' },
             
-            // Центральный хаб
-            'geocity': { name: 'ГеоСити', x: 900, y: 350, lines: ['blue', 'purple', 'green', 'yellow', 'red'], labelPos: 'top-right' },
+            // Фиолетовая ветка (проходит ниже, имеет развилку)
+            'os3': { name: 'ОС3', x: 684, y: 432, lines: ['purple'], labelPos: 'bottom' },
+            'onostolgii': { name: 'О-в Настольгии', x: 1044, y: 432, lines: ['purple'], labelPos: 'top' },
+            'kashkin': { name: 'Кашиик', x: 1044, y: 540, lines: ['purple'], labelPos: 'bottom' },
+            'ind_rayon_gs': { name: 'Индустриальный район ГС', x: 1260, y: 432, lines: ['purple', 'pink'], labelPos: 'top-right' },
             
-            // Фиолетовая ветка
-            'os3': { name: 'ОС3', x: 430, y: 220, lines: ['purple'], labelPos: 'left' },
-            'onostolgii': { name: 'О-в Настольгии', x: 650, y: 200, lines: ['purple'], labelPos: 'right' },
-            'kashkin': { name: 'Кашиик', x: 650, y: 270, lines: ['purple'], labelPos: 'bottom' },
-            'ind_rayon_gs': { name: 'Индустриальный район ГС', x: 750, y: 220, lines: ['purple', 'pink'], labelPos: 'top' },
-            
-            // Розовая ветка
-            'gold_farm': { name: 'Ферма Золота', x: 600, y: 50, lines: ['pink'], labelPos: 'top' },
-            'china_base': { name: 'Китайская база', x: 750, y: 100, lines: ['pink'], labelPos: 'top' },
+            // Розовая ветка (соединяется у Индустриального района)
+            'gold_farm': { name: 'Ферма Золота', x: 1116, y: 90, lines: ['pink'], labelPos: 'top' },
+            'china_base': { name: 'Китайская база', x: 1350, y: 180, lines: ['pink'], labelPos: 'right' },
             
             // Зеленая ветка
-            'portal_end': { name: 'Портал в Энд', x: 300, y: 500, lines: ['green'], labelPos: 'left' },
+            'portal_end': { name: 'Портал в Энд', x: 540, y: 990, lines: ['green'], labelPos: 'bottom' },
             
-            // Бирюзовая ветка
-            'chanki': { name: 'Чанки', x: 500, y: 600, lines: ['cyan'], labelPos: 'top' },
+            // Хаб
+            'geocity': { name: 'ГеоСити', x: 1656, y: 630, lines: ['blue', 'purple', 'green', 'yellow', 'red'], labelPos: 'top-right' },
+            
+            // Бирюзовая ветка (отдельная от красной, не заходит на Костовск)
+            'chanki': { name: 'Чанки', x: 900, y: 1170, lines: ['cyan'], labelPos: 'top' },
             
             // Красная ветка
-            'kostovsk': { name: 'Костовск', x: 800, y: 750, lines: ['red'], labelPos: 'right' },
-            'ssg': { name: 'ССГ', x: 760, y: 850, lines: ['red'], labelPos: 'right' },
+            'kostovsk': { name: 'Костовск', x: 1440, y: 1440, lines: ['red'], labelPos: 'right' },
+            'ssg': { name: 'ССГ', x: 1350, y: 1656, lines: ['red'], labelPos: 'right' },
             
             // Желтая ветка
-            'arhei': { name: 'Архея', x: 980, y: 530, lines: ['yellow'], labelPos: 'top' },
-            'hamistan': { name: 'Хайастан', x: 1100, y: 530, lines: ['yellow'], labelPos: 'top' }
+            'arhei': { name: 'Архея', x: 1836, y: 954, lines: ['yellow'], labelPos: 'top' },
+            'hamistan': { name: 'Хайастан', x: 2070, y: 954, lines: ['yellow'], labelPos: 'top' }
         };
 
         // --- ГЕОМЕТРИЧЕСКАЯ МАРШРУТИЗАЦИЯ ---
         const linesData = {
             'blue': { 
-                color: '#0033A0', name: 'Синяя ветка', // Сделал синий темнее и сочнее
+                color: '#0033A0', name: 'Синяя ветка',
                 route: [
                     'almaz_shahta_gs', 'downtown_02', 'downtown', 
-                    'spavn_ni', {x: 550, y: 400}, 'sudebnaya', 
-                    {x: 710, y: 400}, {x: 760, y: 350}, 'geocity'
+                    'spavn_ni', {x: 936, y: 774}, 'sudebnaya', 
+                    {x: 1350, y: 774}, {x: 1476, y: 630}, 'geocity'
                 ] 
             },
             'green': { 
                 color: '#00A859', name: 'Зеленая ветка',
-                // Зеленая идет параллельно синей от Судебной
                 route: [
-                    'portal_end', {x: 300, y: 400}, 'sudebnaya', 
-                    {x: 720, y: 415}, {x: 785, y: 350}, 'geocity'
+                    'portal_end', {x: 540, y: 810}, 'sudebnaya', 
+                    {x: 1386, y: 810}, {x: 1512, y: 630}, 'geocity'
                 ] 
             },
-            'purple': { 
-                color: '#7A00A0', name: 'Фиолетовая ветка',
-                // Та самая сложная петля по рисунку
+            // Верхняя часть фиолетовой вилки
+            'purple_top': { 
+                color: '#8E44AD', name: 'Фиолетовая ветка',
                 route: [
-                    'os3', {x: 480, y: 220}, 'downtown', 
-                    {x: 600, y: 150}, {x: 650, y: 200}, 'onostolgii', 
-                    'kashkin', {x: 700, y: 270}, {x: 750, y: 220}, 'ind_rayon_gs', 
-                    {x: 830, y: 220}, {x: 900, y: 290}, 'geocity'
+                    'os3', {x: 864, y: 432}, 'onostolgii', 
+                    'ind_rayon_gs', {x: 1404, y: 432}, {x: 1530, y: 630}, 'geocity'
                 ] 
             },
+            // Нижняя часть фиолетовой вилки (через Кашиик)
+            'purple_bottom': { 
+                color: '#8E44AD', name: 'Фиолетовая ветка',
+                route: [
+                    {x: 864, y: 432}, {x: 864, y: 540}, 'kashkin', 
+                    {x: 1314, y: 540}, {x: 1404, y: 432}
+                ] 
+            },
+            // Основной ствол розовой
+            'pink_main': { 
+                color: '#F482B6', name: 'Розовая ветка',
+                route: ['gold_farm', {x: 1116, y: 270}, {x: 1224, y: 360}, 'ind_rayon_gs'] 
+            },
+            // Ответвление Китайской базы
             'pink_branch': { 
                 color: '#F482B6', name: 'Розовая ветка',
-                // Ответвление Китайской базы
-                route: ['china_base', {x: 650, y: 150}, {x: 600, y: 150}] 
-            },
-            'pink': { 
-                color: '#F482B6', name: 'Розовая ветка',
-                // Основной спуск от Фермы Золота
-                route: ['gold_farm', {x: 600, y: 150}, {x: 650, y: 150}, {x: 720, y: 220}, 'ind_rayon_gs'] 
+                route: ['china_base', {x: 1170, y: 180}, {x: 1116, y: 180}] 
             },
             'red': { 
                 color: '#E3000F', name: 'Красная ветка',
-                // Спуск от ГеоСити вниз
-                route: ['geocity', {x: 900, y: 450}, {x: 800, y: 550}, 'kostovsk', {x: 800, y: 790}, 'ssg'] 
+                route: ['geocity', {x: 1656, y: 810}, {x: 1476, y: 1080}, 'kostovsk', 'ssg'] 
             },
+            // Бирюзовая ветка — самостоятельная, заканчивается тупиком рядом с Костовском, но не на нём
             'cyan': { 
                 color: '#00BCE4', name: 'Бирюзовая ветка',
-                // Вливается в красную
-                route: ['chanki', {x: 800, y: 600}] 
+                route: ['chanki', {x: 1404, y: 1170}, {x: 1430, y: 1340}] 
             },
             'yellow': { 
                 color: '#FFD100', name: 'Желтая ветка',
-                // Спуск и вправо от ГеоСити
-                route: ['geocity', {x: 915, y: 365}, {x: 915, y: 530}, 'arhei', 'hamistan'] 
+                route: ['geocity', {x: 1683, y: 648}, {x: 1683, y: 954}, 'arhei', 'hamistan'] 
             }
         };
 
@@ -307,6 +287,19 @@
         const stationsLayer = document.getElementById('stations-layer');
         const infoPanel = document.getElementById('info-panel');
 
+        // Универсальный поиск цвета линии (учитывает ветки вида purple_top/purple_bottom, pink_main/pink_branch и т.д.)
+        function getLineColor(lineId) {
+            if (linesData[lineId]) return linesData[lineId].color;
+            const variantKey = Object.keys(linesData).find(key => key.startsWith(lineId + '_'));
+            return variantKey ? linesData[variantKey].color : '#999999';
+        }
+
+        function getLineRef(lineId) {
+            return linesData[lineId]
+                || linesData[Object.keys(linesData).find(key => key.startsWith(lineId + '_'))];
+        }
+
+        // Алгоритм скругления линий
         function generateRoundedPath(routeArray, radius = 40) {
             const pts = routeArray.map(item => typeof item === 'string' ? stationsData[item] : item);
             if (pts.length < 2) return '';
@@ -338,16 +331,20 @@
         Object.keys(linesData).forEach(lineId => {
             const line = linesData[lineId];
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            // Если это ветвь розовой, привязываем классы для подсветки ко всей ветке
-            const logicalLineId = lineId.startsWith('pink') ? 'pink' : lineId;
+            
+            // Группируем логические ветви для правильной подсветки
+            let logicClass = lineId;
+            if (lineId.startsWith('purple')) logicClass = 'purple';
+            if (lineId.startsWith('pink')) logicClass = 'pink';
+
             path.setAttribute('id', `line-${lineId}`);
-            path.setAttribute('class', `metro-line logic-line-${logicalLineId}`);
+            path.setAttribute('class', `metro-line logic-line-${logicClass}`);
             path.setAttribute('stroke', line.color);
             path.setAttribute('d', generateRoundedPath(line.route));
             linesLayer.appendChild(path);
         });
 
-        // Вспомогательная функция для точек соединения
+        // Точки слияния безымянные
         function drawConnectionPoint(x, y, color) {
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', x);
@@ -356,11 +353,9 @@
             circle.setAttribute('fill', color);
             linesLayer.appendChild(circle);
         }
-        
-        // Рисуем точку слияния бирюзовой и красной ветки
-        drawConnectionPoint(800, 600, '#00BCE4');
-        // Рисуем развилку розовой ветки
-        drawConnectionPoint(650, 150, '#F482B6');
+        drawConnectionPoint(864, 432, '#8E44AD'); // Развилка фиолетовой
+        drawConnectionPoint(1404, 432, '#8E44AD'); // Слияние фиолетовой
+        drawConnectionPoint(1116, 180, '#F482B6'); // Развилка розовой
 
         // Отрисовка станций
         Object.keys(stationsData).forEach(stationId => {
@@ -374,6 +369,7 @@
             circle.setAttribute('cx', station.x);
             circle.setAttribute('cy', station.y);
             
+            // Если пересадочная
             if (station.lines.length > 1) {
                 circle.setAttribute('r', 11);
                 circle.setAttribute('fill', 'white');
@@ -381,9 +377,8 @@
                 circle.setAttribute('stroke-width', 3);
             } else {
                 circle.setAttribute('r', 8);
-                // Берем основной цвет линии
                 const mainLine = station.lines[0];
-                circle.setAttribute('fill', linesData[mainLine].color);
+                circle.setAttribute('fill', getLineColor(mainLine));
                 circle.setAttribute('stroke-width', 2);
             }
 
@@ -391,10 +386,10 @@
             text.setAttribute('class', 'station-label');
             text.textContent = station.name;
 
-            // Гибкое позиционирование текста
+            // Позиционирование подписей
             let dx = 18, dy = 6, anchor = 'start';
             if (station.labelPos === 'bottom') { dx = 0; dy = 28; anchor = 'middle'; }
-            else if (station.labelPos === 'top') { dx = 0; dy = -18; anchor = 'middle'; }
+            else if (station.labelPos === 'top') { dx = 0; dy = -15; anchor = 'middle'; }
             else if (station.labelPos === 'left') { dx = -18; dy = 6; anchor = 'end'; }
             else if (station.labelPos === 'right') { dx = 18; dy = 6; anchor = 'start'; }
             else if (station.labelPos === 'top-right') { dx = 15; dy = -15; anchor = 'start'; }
@@ -408,6 +403,7 @@
             group.appendChild(text);
             stationsLayer.appendChild(group);
 
+            // Интерактивность при наведении
             group.addEventListener('mouseenter', e => {
                 stationsData[e.currentTarget.getAttribute('data-id')].lines.forEach(lineId => {
                     document.querySelectorAll(`.logic-line-${lineId}`).forEach(el => el.classList.add('line-highlight'));
@@ -419,7 +415,7 @@
             group.addEventListener('click', handleStationClick);
         });
 
-        // Логика попапа
+        // Клик по станции
         function handleStationClick(e) {
             e.stopPropagation();
             const stationId = e.currentTarget.getAttribute('data-id');
@@ -430,11 +426,11 @@
             lineListItems.innerHTML = ''; 
 
             station.lines.forEach(lineId => {
-                const line = linesData[lineId];
+                const lineRef = getLineRef(lineId);
                 const li = document.createElement('li');
                 li.setAttribute('class', 'line-item');
-                li.innerHTML = `<div class="line-color-swatch" style="background-color: ${line.color}"></div>
-                                <span class="line-name">${line.name}</span>`;
+                li.innerHTML = `<div class="line-color-swatch" style="background-color: ${lineRef.color}"></div>
+                                <span class="line-name">${lineRef.name}</span>`;
                 lineListItems.appendChild(li);
             });
             infoPanel.style.display = 'block';
@@ -442,10 +438,10 @@
 
         document.getElementById('close-panel').addEventListener('click', () => infoPanel.style.display = 'none');
 
-        // Скролл и Зум
+        // Управление картой (Pan & Zoom)
         const svg = document.getElementById('metro-svg');
         const container = document.getElementById('map-container');
-        let viewBox = { x: 0, y: 0, w: 1200, h: 1200 };
+        let viewBox = { x: 0, y: 0, w: 2160, h: 2160 };
         let isPanning = false, startPoint = { x: 0, y: 0 }, scale = 1;
 
         function updateViewBox() { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`); }
@@ -496,7 +492,7 @@
         document.getElementById('zoom-in').addEventListener('click', () => zoomCentered(1.3));
         document.getElementById('zoom-out').addEventListener('click', () => zoomCentered(0.7));
         document.getElementById('zoom-reset').addEventListener('click', () => {
-            viewBox = { x: 0, y: 0, w: 1200, h: 1200 }; scale = 1; updateViewBox(); infoPanel.style.display = 'none';
+            viewBox = { x: 0, y: 0, w: 2160, h: 2160 }; scale = 1; updateViewBox(); infoPanel.style.display = 'none';
         });
     </script>
 </body>
