@@ -1,16 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="manifest" href="/site.webmanifest">
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GHW</title>
+    <title>Интерактивная Карта Метрополитена</title>
     <style>
         /* ── Переменные тем ── */
         :root {
@@ -97,6 +90,11 @@
             stroke-linecap: round;
             stroke-linejoin: round;
             transition: stroke-width 0.2s ease, filter 0.2s ease;
+            cursor: pointer;
+        }
+
+        .monorail-dash {
+            stroke-dasharray: 16 12;
         }
 
         .station {
@@ -182,6 +180,95 @@
             transition: background-color 0.3s, color 0.3s, transform 0.2s;
         }
         .control-btn:hover { background-color: var(--btn-hover-bg); transform: translateY(-2px); }
+
+        /* ── Всплывающая кнопка при клике на линию ── */
+        #line-popup {
+            position: fixed;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 200;
+            transform: translate(-50%, -125%);
+            white-space: nowrap;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        #line-popup-swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        #line-popup-name { color: var(--panel-h2); font-weight: 700; font-size: 0.92em; }
+        #line-popup-btn {
+            border: none; border-radius: 8px; padding: 7px 13px; cursor: pointer;
+            background-color: var(--btn-bg); color: var(--btn-color);
+            font-weight: 600; font-size: 0.88em;
+            box-shadow: 0 3px 8px var(--btn-shadow);
+            transition: background-color 0.2s, color 0.3s;
+        }
+        #line-popup-btn:hover { background-color: var(--btn-hover-bg); }
+
+        /* ── Модальное окно с линейной схемой маршрута ── */
+        #line-diagram-overlay {
+            position: fixed; inset: 0; display: none;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.45);
+            z-index: 300;
+        }
+        #line-diagram-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            width: min(430px, 90vw);
+            max-height: 82vh;
+            overflow-y: auto;
+            padding: 26px 28px 22px;
+            position: relative;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        #line-diagram-close {
+            position: absolute; top: 16px; right: 18px;
+            cursor: pointer; font-size: 1.5em; line-height: 1;
+            color: var(--panel-close);
+        }
+        #line-diagram-close:hover { color: var(--panel-close-h); }
+        #line-diagram-title { margin: 0 30px 4px 0; font-size: 1.25em; color: var(--panel-h2); }
+        #line-diagram-subtitle { margin: 0 0 20px 0; font-size: 0.85em; color: var(--panel-p); }
+
+        .diagram-track {
+            position: relative;
+            margin-left: 12px;
+            padding-left: 24px;
+            border-left: 5px solid var(--track-color, #999);
+        }
+        .diagram-row { position: relative; padding: 9px 0 9px 16px; }
+        .diagram-node {
+            position: absolute; left: -34.5px; top: 13px;
+            width: 16px; height: 16px; border-radius: 50%;
+            background-color: var(--track-color, #999);
+            border: 3px solid var(--panel-bg);
+            box-shadow: 0 0 0 2px var(--track-color, #999);
+            transition: border-color 0.3s;
+        }
+        .diagram-node--transfer { background-color: var(--panel-bg); }
+        .diagram-station-name { font-weight: 700; color: var(--panel-line); font-size: 0.98em; }
+        .diagram-row-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+        .diagram-dot {
+            width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+            box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5);
+        }
+        .diagram-mod { font-size: 0.76em; font-weight: 700; color: #c0392b; }
+        .diagram-mod-ok { font-size: 0.76em; font-weight: 700; color: #27ae60; }
+        .diagram-branch-label {
+            margin: 4px 0 2px 16px; font-size: 0.8em; font-weight: 700;
+            color: var(--panel-p); letter-spacing: 0.02em;
+        }
+        .diagram-branch-wrap {
+            margin-left: 32px; padding-left: 18px;
+            border-left: 3px dashed var(--track-color, #999);
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -221,6 +308,21 @@
         <div id="info-mod" style="display:none; margin-top:12px; padding:7px 12px; border-radius:8px; font-size:0.88em; font-weight:700; letter-spacing:0.01em;"></div>
     </div>
 
+    <div id="line-popup">
+        <div id="line-popup-swatch"></div>
+        <span id="line-popup-name"></span>
+        <button id="line-popup-btn">Линейная схема →</button>
+    </div>
+
+    <div id="line-diagram-overlay">
+        <div id="line-diagram-panel">
+            <span id="line-diagram-close">&times;</span>
+            <h2 id="line-diagram-title"></h2>
+            <p id="line-diagram-subtitle">Все станции и пересадки маршрута</p>
+            <div id="line-diagram-body"></div>
+        </div>
+    </div>
+
     <script>
         // --- БАЗА ДАННЫХ СТАНЦИЙ ---
         const stationsData = {
@@ -245,7 +347,7 @@
             'portal_end': { name: 'Главный Портал в Энд', x: 648, y: 1188, lines: ['green'], labelPos: 'bottom' },
             
             // Хаб
-            'geocity': { name: 'ГеоСити - Терминал', x: 1987.2, y: 756, lines: ['blue', 'purple', 'green', 'yellow', 'red'], labelPos: 'top-right' },
+            'geocity': { name: 'ГеоСити - Терминал', x: 1987.2, y: 756, lines: ['blue', 'purple', 'green', 'yellow', 'red', 'crimson'], labelPos: 'top-right' },
             
             // Бирюзовая ветка (отдельная от красной, не заходит на Костовск)
             'chanki': { name: 'Чанки', x: 1080, y: 1404, lines: ['cyan'], labelPos: 'top', mod: true },
@@ -259,7 +361,11 @@
             'hamistan': { name: 'Хайастан', x: 2484, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
 
             // Ответвление красной ветки между Костовском и ССГ
-            'krepost_ssg': { name: 'Крепость ССГ', x: 1980, y: 1872, lines: ['red'], labelPos: 'right', mod: true }
+            'krepost_ssg': { name: 'Крепость ССГ', x: 1980, y: 1872, lines: ['red'], labelPos: 'right', mod: true },
+
+            // Малиновая ветка + монорельс (новые станции, модернизация не требуется)
+            'velikogo_naslediya': { name: 'Станция великого наследия', x: 2140, y: 940, lines: ['crimson', 'monorail'], labelPos: 'top' },
+            'kultury': { name: 'Станция Культуры', x: 2240, y: 1260, lines: ['crimson', 'monorail'], labelPos: 'right' }
         };
 
         // --- ГЕОМЕТРИЧЕСКАЯ МАРШРУТИЗАЦИЯ ---
@@ -322,6 +428,24 @@
             'yellow': { 
                 color: '#FFD100', name: 'Желтая ветка',
                 route: ['geocity', {x: 1972.8, y: 984}, {x: 1942.8, y: 1152}, 'arhei', 'hamistan'] 
+            },
+            // Малиновая ветка — идёт параллельно красной и желтой от ГеоСити,
+            // затем поворачивает на 90° ДО поворота желтой к Архее, идёт прямо
+            // и снова поворачивает на юг к конечной станции
+            'crimson': { 
+                color: '#E6007E', name: 'Малиновая ветка',
+                route: [
+                    'geocity', {x: 2000, y: 850}, {x: 2000, y: 940}, 
+                    'velikogo_naslediya', {x: 2240, y: 940}, 'kultury'
+                ] 
+            },
+            // Монорельс — отдельная связь между теми же двумя станциями,
+            // проложена петлёй в стороне от основной линии (как на эскизе)
+            'monorail': { 
+                color: '#B19CD9', name: 'Монорельс',
+                route: [
+                    'velikogo_naslediya', {x: 2100, y: 940}, {x: 2100, y: 1260}, 'kultury'
+                ] 
             }
         };
 
@@ -340,6 +464,30 @@
             return linesData[lineId]
                 || linesData[Object.keys(linesData).find(key => key.startsWith(lineId + '_'))];
         }
+
+        // Логическое семейство линии (объединяет ветки вида purple_top/purple_bottom и т.д.)
+        function getLineFamily(lineId) {
+            if (lineId.startsWith('purple')) return 'purple';
+            if (lineId.startsWith('pink')) return 'pink';
+            if (lineId.startsWith('red')) return 'red';
+            return lineId;
+        }
+
+        // --- ДАННЫЕ ДЛЯ ЛИНЕЙНЫХ СХЕМ (порядок станций по каждой линии, с учётом веток) ---
+        const lineDiagrams = {
+            blue:    { name: 'Синяя ветка',      color: '#0033A0', stations: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', 'sudebnaya', 'geocity'] },
+            green:   { name: 'Зеленая ветка',     color: '#00A859', stations: ['portal_end', 'sudebnaya', 'geocity'] },
+            purple:  { name: 'Фиолетовая ветка',  color: '#8E44AD', stations: ['os3', 'onostolgii', 'ind_rayon_gs', 'geocity'],
+                       branch: { afterId: 'os3', label: 'ответвление через Кашиик', stations: ['kashkin'] } },
+            pink:    { name: 'Розовая ветка',     color: '#F482B6', stations: ['gold_farm', 'ind_rayon_gs'],
+                       branch: { afterId: 'gold_farm', label: 'ответвление к Китайской базе', stations: ['china_base'] } },
+            red:     { name: 'Красная ветка',     color: '#E3000F', stations: ['geocity', 'kostovsk', 'ssg'],
+                       branch: { afterId: 'kostovsk', label: 'ответвление к Крепости ССГ', stations: ['krepost_ssg'] } },
+            cyan:    { name: 'Бирюзовая ветка',   color: '#00BCE4', stations: ['chanki'] },
+            yellow:  { name: 'Желтая ветка',      color: '#FFD100', stations: ['geocity', 'arhei', 'hamistan'] },
+            crimson: { name: 'Малиновая ветка',   color: '#E6007E', stations: ['geocity', 'velikogo_naslediya', 'kultury'] },
+            monorail:{ name: 'Монорельс',         color: '#B19CD9', stations: ['velikogo_naslediya', 'kultury'] }
+        };
 
         // Алгоритм скругления линий
         function generateRoundedPath(routeArray, radius = 40) {
@@ -374,17 +522,23 @@
             const line = linesData[lineId];
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             
-            // Группируем логические ветви для правильной подсветки
-            let logicClass = lineId;
-            if (lineId.startsWith('purple')) logicClass = 'purple';
-            if (lineId.startsWith('pink')) logicClass = 'pink';
-            if (lineId.startsWith('red')) logicClass = 'red';
+            // Группируем логические ветви для правильной подсветки и для клика (линейная схема)
+            const logicClass = getLineFamily(lineId);
+            const dashClass = lineId === 'monorail' ? ' monorail-dash' : '';
 
             path.setAttribute('id', `line-${lineId}`);
-            path.setAttribute('class', `metro-line logic-line-${logicClass}`);
+            path.setAttribute('class', `metro-line logic-line-${logicClass}${dashClass}`);
             path.setAttribute('stroke', line.color);
             path.setAttribute('d', generateRoundedPath(line.route));
+            path.setAttribute('data-family', logicClass);
             linesLayer.appendChild(path);
+
+            // Клик по линии — показать всплывающую кнопку для открытия линейной схемы
+            path.addEventListener('click', e => {
+                e.stopPropagation();
+                if (dragMoved) return;
+                showLinePopup(logicClass, e);
+            });
         });
 
         // Точки слияния безымянные
@@ -522,6 +676,7 @@
         // Клик по станции
         function handleStationClick(e) {
             e.stopPropagation();
+            hideLinePopup();
             const stationId = e.currentTarget.getAttribute('data-id');
             const station = stationsData[stationId];
 
@@ -557,19 +712,113 @@
 
         document.getElementById('close-panel').addEventListener('click', () => infoPanel.style.display = 'none');
 
+        // --- ВСПЛЫВАЮЩАЯ КНОПКА ПРИ КЛИКЕ НА ЛИНИЮ + ЛИНЕЙНАЯ СХЕМА МАРШРУТА ---
+        const linePopup = document.getElementById('line-popup');
+        let activeLineFamily = null;
+
+        function showLinePopup(family, evt) {
+            const info = lineDiagrams[family];
+            if (!info) return;
+            activeLineFamily = family;
+            document.getElementById('line-popup-swatch').style.backgroundColor = info.color;
+            document.getElementById('line-popup-name').textContent = info.name;
+            linePopup.style.left = evt.clientX + 'px';
+            linePopup.style.top = Math.max(evt.clientY, 70) + 'px';
+            linePopup.style.display = 'flex';
+        }
+
+        function hideLinePopup() {
+            linePopup.style.display = 'none';
+            activeLineFamily = null;
+        }
+
+        document.getElementById('line-popup-btn').addEventListener('click', e => {
+            e.stopPropagation();
+            if (activeLineFamily) openLineDiagram(activeLineFamily);
+            hideLinePopup();
+        });
+
+        // Клик вне попапа и вне линий — скрыть попап
+        window.addEventListener('mousedown', e => {
+            if (linePopup.style.display === 'flex' && !e.target.closest('#line-popup') && !e.target.closest('.metro-line')) {
+                hideLinePopup();
+            }
+        });
+
+        // Строка одной станции для линейной схемы (сама станция + значки пересадок + модернизация)
+        function diagramStationRow(stationId, currentFamily) {
+            const st = stationsData[stationId];
+            const otherLines = st.lines.filter(l => getLineFamily(l) !== currentFamily);
+            const dots = otherLines.map(l =>
+                `<span class="diagram-dot" style="background-color:${getLineColor(l)}" title="${getLineRef(l).name}"></span>`
+            ).join('');
+            const modBadge = st.mod
+                ? `<span class="diagram-mod">🔧 требуется модернизация</span>`
+                : `<span class="diagram-mod-ok">✅ модернизация не требуется</span>`;
+
+            return `
+                <div class="diagram-row">
+                    <div class="diagram-node${otherLines.length ? ' diagram-node--transfer' : ''}"></div>
+                    <div class="diagram-station-name">${st.name}</div>
+                    <div class="diagram-row-meta">${dots}${modBadge}</div>
+                </div>`;
+        }
+
+        function openLineDiagram(family) {
+            const info = lineDiagrams[family];
+            if (!info) return;
+
+            const title = document.getElementById('line-diagram-title');
+            title.textContent = info.name;
+            title.style.color = info.color;
+
+            const body = document.getElementById('line-diagram-body');
+            let html = `<div class="diagram-track" style="--track-color:${info.color}">`;
+
+            info.stations.forEach(stId => {
+                html += diagramStationRow(stId, family);
+
+                // Если сразу после этой станции есть ответвление — выводим его отдельным блоком
+                if (info.branch && info.branch.afterId === stId) {
+                    html += `<div class="diagram-branch-label">↳ ${info.branch.label}</div>`;
+                    html += `<div class="diagram-branch-wrap">`;
+                    info.branch.stations.forEach(bId => {
+                        html += diagramStationRow(bId, family);
+                    });
+                    html += `</div>`;
+                }
+            });
+
+            html += `</div>`;
+            body.innerHTML = html;
+            document.getElementById('line-diagram-overlay').style.display = 'flex';
+        }
+
+        function closeLineDiagram() {
+            document.getElementById('line-diagram-overlay').style.display = 'none';
+        }
+        document.getElementById('line-diagram-close').addEventListener('click', closeLineDiagram);
+        document.getElementById('line-diagram-overlay').addEventListener('click', e => {
+            if (e.target.id === 'line-diagram-overlay') closeLineDiagram();
+        });
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLineDiagram();
+        });
+
         // Управление картой (Pan & Zoom)
         const svg = document.getElementById('metro-svg');
         const container = document.getElementById('map-container');
         let viewBox = { x: 0, y: 0, w: 2592, h: 2592 };
-        let isPanning = false, startPoint = { x: 0, y: 0 }, scale = 1;
+        let isPanning = false, startPoint = { x: 0, y: 0 }, scale = 1, dragMoved = false;
 
         function updateViewBox() { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`); }
 
         container.addEventListener('mousedown', e => {
             if (!e.target.closest('.station-group')) {
-                isPanning = true; container.classList.add('grabbing');
+                isPanning = true; dragMoved = false; container.classList.add('grabbing');
                 startPoint = { x: e.clientX, y: e.clientY };
                 infoPanel.style.display = 'none';
+                hideLinePopup();
             }
         });
 
@@ -577,6 +826,7 @@
             if (!isPanning) return;
             const dx = (e.clientX - startPoint.x) * (viewBox.w / container.clientWidth);
             const dy = (e.clientY - startPoint.y) * (viewBox.h / container.clientHeight);
+            if (Math.abs(e.clientX - startPoint.x) > 3 || Math.abs(e.clientY - startPoint.y) > 3) dragMoved = true;
             viewBox.x -= dx; viewBox.y -= dy;
             updateViewBox();
             startPoint = { x: e.clientX, y: e.clientY };
@@ -612,6 +862,7 @@
         document.getElementById('zoom-out').addEventListener('click', () => zoomCentered(0.7));
         document.getElementById('zoom-reset').addEventListener('click', () => {
             viewBox = { x: 0, y: 0, w: 2592, h: 2592 }; scale = 1; updateViewBox(); infoPanel.style.display = 'none';
+            hideLinePopup();
         });
 
         // --- ПЕРЕКЛЮЧЕНИЕ ТЕМЫ ---
