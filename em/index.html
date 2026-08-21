@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ВМ</title>
     <style>
         /* ── Переменные тем ── */
@@ -66,215 +65,268 @@
             transition: background-color 0.3s;
         }
 
-        #map-container {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            cursor: grab;
-            position: relative;
-            background-color: var(--bg);
-            transition: background-color 0.3s;
+        #y-height-label {
+            position: fixed; top: 20px; left: 20px;
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border);
+            padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 0.9em;
+            color: var(--panel-h2); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100; pointer-events: none;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
         }
 
+        /* ── Поиск станций ── */
+        #search-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: min(340px, 75vw);
+        }
+        #station-search-input {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            color: var(--panel-h2);
+            font-size: 0.95em;
+            outline: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+        #station-search-input:focus {
+            border-color: #00BCE4;
+        }
+        #search-results-list {
+            display: none;
+            position: absolute;
+            top: 48px;
+            left: 0;
+            right: 0;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            z-index: 101;
+        }
+
+        /* ── Адаптивность плашки высоты и поиска для мобильных устройств ── */
+        @media (max-width: 600px) {
+            #y-height-label {
+                top: 10px;
+                left: 10px;
+                padding: 6px 10px;
+                font-size: 0.7em;
+                max-width: 40vw;
+            }
+            #search-container {
+                top: 10px;
+                left: 55%;
+                width: min(200px, 45vw);
+            }
+            #station-search-input {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+        }
+
+        #map-container {
+            width: 100vw; height: 100vh; overflow: hidden; cursor: grab;
+            position: relative; background-color: var(--bg);
+            transition: background-color 0.3s; touch-action: none;
+        }
         #map-container.grabbing { cursor: grabbing; }
 
-        #metro-svg {
-            width: 100%;
-            height: 100%;
-            transform-origin: 0 0;
-            user-select: none;
-        }
+        #metro-svg { width: 100%; height: 100%; transform-origin: 0 0; user-select: none; }
 
         .metro-line {
-            stroke-width: 11;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            transition: stroke-width 0.2s ease, filter 0.2s ease;
+            stroke-width: 11; fill: none; stroke-linecap: round; stroke-linejoin: round;
+            transition: stroke-width 0.2s ease, filter 0.2s ease, opacity 0.3s ease;
             cursor: pointer;
         }
+        .monorail-dash { stroke-dasharray: 16 12; }
 
-        .monorail-dash {
-            stroke-dasharray: 16 12;
-        }
-
-        .station {
-            transition: r 0.2s ease, stroke-width 0.2s ease;
-        }
-
-        .station-group {
-            cursor: pointer;
-            pointer-events: bounding-box;
-        }
-
-        .station-group:hover .station {
-            r: 12 !important;
-            stroke-width: 4 !important;
-            filter: drop-shadow(0 0 5px rgba(0,0,0,0.4));
-        }
-
+        .station { transition: r 0.2s ease, stroke-width 0.2s ease, opacity 0.3s ease; }
+        .station-group { cursor: pointer; pointer-events: bounding-box; transition: opacity 0.3s ease; }
+        .station-group:hover .station { r: 12 !important; stroke-width: 4 !important; filter: drop-shadow(0 0 5px rgba(0,0,0,0.4)); }
         .station-group:hover text { fill: var(--hover-fill); }
-
         .station-label {
-            fill: var(--label-fill);
-            font-size: 16px;
-            font-weight: 700;
-            pointer-events: none;
-            transition: fill 0.3s ease;
+            fill: var(--label-fill); font-size: 16px; font-weight: 700; pointer-events: none; transition: fill 0.3s ease, opacity 0.3s ease;
         }
 
-        .line-highlight {
-            stroke-width: 15;
-            filter: drop-shadow(0 0 8px rgba(0,0,0,0.3));
+        /* ── Подсветка и приглушение линий ── */
+        .metro-line.line-dimmed { opacity: 0.18; }
+        .metro-line.line-highlight { stroke-width: 16 !important; opacity: 1 !important; filter: drop-shadow(0 0 8px rgba(0,0,0,0.4)); }
+
+        /* ── Эффекты при активном навигаторе ── */
+        #map-container.routing-active .metro-line { opacity: 0.15; pointer-events: none; }
+        #map-container.routing-active .station-group { opacity: 0.15; pointer-events: none; }
+        #map-container.routing-active .station-group.route-node { opacity: 1; pointer-events: auto; }
+        #map-container.routing-active .station-group.route-node text { font-size: 18px; filter: drop-shadow(0 0 5px var(--bg)); }
+        
+        .route-path {
+            fill: none; stroke-linecap: round; stroke-linejoin: round;
+            stroke-width: 14; filter: drop-shadow(0 0 8px rgba(0,0,0,0.4));
+            animation: dashPulse 2s linear infinite;
         }
 
-        #info-panel {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: var(--panel-bg);
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 280px;
-            display: none;
-            z-index: 100;
-            border: 1px solid var(--panel-border);
+        /* ── Панели ── */
+        .side-panel {
+            position: fixed; background-color: var(--panel-bg);
+            padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid var(--panel-border); z-index: 100;
             transition: background-color 0.3s, border-color 0.3s;
+            max-height: 85vh; overflow-y: auto;
         }
+        #info-panel { bottom: 20px; right: 20px; width: 300px; display: none; }
+        #nav-panel { top: 70px; left: 20px; width: 320px; display: none; }
 
-        #info-panel h2 { margin-top: 0; margin-bottom: 12px; font-size: 1.3em; color: var(--panel-h2); }
-        #info-panel p  { margin: 0 0 12px 0; color: var(--panel-p); font-size: 0.9em; }
+        .side-panel h2 { margin-top: 0; margin-bottom: 12px; font-size: 1.3em; color: var(--panel-h2); }
+        .side-panel p { margin: 0 0 12px 0; color: var(--panel-p); font-size: 0.9em; }
+        .panel-close {
+            position: absolute; top: 15px; right: 15px;
+            cursor: pointer; font-size: 1.5em; line-height: 1; color: var(--panel-close);
+        }
+        .panel-close:hover { color: var(--panel-close-h); }
 
         .line-list { list-style: none; padding: 0; margin: 0; }
         .line-item { display: flex; align-items: center; margin-bottom: 10px; }
-
-        .line-color-swatch {
-            width: 18px; height: 18px;
-            border-radius: 50%;
-            margin-right: 12px;
-            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3);
-        }
+        .line-color-swatch { width: 18px; height: 18px; border-radius: 50%; margin-right: 12px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3); }
         .line-name { font-weight: 600; color: var(--panel-line); }
 
-        #close-panel {
-            position: absolute; top: 15px; right: 15px;
-            cursor: pointer; font-size: 1.5em; line-height: 1;
-            color: var(--panel-close);
-        }
-        #close-panel:hover { color: var(--panel-close-h); }
-
-        #controls {
-            position: fixed; top: 20px; right: 20px;
-            display: flex; flex-direction: column; gap: 10px;
-            z-index: 90;
-        }
-
+        #controls { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 90; }
         .control-btn {
-            width: 44px; height: 44px;
-            background-color: var(--btn-bg);
-            border: none; border-radius: 12px;
-            font-size: 1.4em; cursor: pointer;
-            box-shadow: 0 4px 10px var(--btn-shadow);
-            display: flex; justify-content: center; align-items: center;
-            color: var(--btn-color);
+            width: 44px; height: 44px; background-color: var(--btn-bg); border: none; border-radius: 12px;
+            font-size: 1.4em; cursor: pointer; box-shadow: 0 4px 10px var(--btn-shadow);
+            display: flex; justify-content: center; align-items: center; color: var(--btn-color);
             transition: background-color 0.3s, color 0.3s, transform 0.2s;
         }
         .control-btn:hover { background-color: var(--btn-hover-bg); transform: translateY(-2px); }
+        .control-btn.active-btn { background-color: #00BCE4; color: white; }
+
+        /* Элементы формы навигатора */
+        .nav-form-group { display: flex; flex-direction: column; margin-bottom: 12px; }
+        .nav-form-group label { font-size: 0.85em; font-weight: 600; color: var(--panel-p); margin-bottom: 4px; }
+        .nav-select {
+            width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border);
+            background-color: var(--bg); color: var(--panel-h2); font-size: 0.95em;
+            outline: none; transition: border-color 0.2s;
+        }
+        .nav-select:focus { border-color: #00BCE4; }
+        
+        .nav-buttons { display: flex; gap: 8px; margin-top: 16px; margin-bottom: 16px; }
+        .nav-btn {
+            flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: 600; transition: 0.2s; background-color: var(--grid-major); color: var(--panel-h2);
+        }
+        .nav-btn-primary { background-color: #00BCE4; color: white; }
+        .nav-btn-primary:hover { background-color: #0098b8; }
+        .nav-btn:hover:not(.nav-btn-primary) { filter: brightness(0.9); }
+
+        #nav-results { display: none; padding-top: 10px; border-top: 1px solid var(--panel-border); }
+        
+        /* ── Меню дальтоников ── */
+        #cb-menu {
+            position: absolute; right: 60px; top: 108px; background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15); display: none; width: 170px;
+        }
+        #cb-menu h4 { margin: 0 0 10px 0; font-size: 0.9em; color: var(--panel-h2); }
+        .cb-btn {
+            display: block; width: 100%; text-align: left; background: transparent; border: none;
+            padding: 7px 10px; color: var(--panel-line); cursor: pointer; border-radius: 6px;
+            margin-bottom: 4px; font-size: 0.85em; transition: 0.2s;
+        }
+        .cb-btn:hover { background: var(--btn-hover-bg); }
+        .cb-btn.active { font-weight: bold; background: var(--btn-hover-bg); color: var(--panel-h2); }
 
         /* ── Всплывающая кнопка при клике на линию ── */
         #line-popup {
-            position: fixed;
-            display: none;
-            align-items: center;
-            gap: 10px;
-            background-color: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 12px;
-            padding: 10px 14px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            z-index: 200;
-            transform: translate(-50%, -125%);
-            white-space: nowrap;
-            transition: background-color 0.3s, border-color 0.3s;
+            position: fixed; display: none; align-items: center; gap: 10px;
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border);
+            border-radius: 12px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 200; transform: translate(-50%, -125%); white-space: nowrap;
         }
         #line-popup-swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
         #line-popup-name { color: var(--panel-h2); font-weight: 700; font-size: 0.92em; }
         #line-popup-btn {
             border: none; border-radius: 8px; padding: 7px 13px; cursor: pointer;
-            background-color: var(--btn-bg); color: var(--btn-color);
-            font-weight: 600; font-size: 0.88em;
-            box-shadow: 0 3px 8px var(--btn-shadow);
-            transition: background-color 0.2s, color 0.3s;
+            background-color: var(--btn-bg); color: var(--btn-color); font-weight: 600; font-size: 0.88em;
+            box-shadow: 0 3px 8px var(--btn-shadow); transition: background-color 0.2s, color 0.3s;
         }
         #line-popup-btn:hover { background-color: var(--btn-hover-bg); }
 
-        /* ── Модальное окно с линейной схемой маршрута ── */
-        #line-diagram-overlay {
-            position: fixed; inset: 0; display: none;
-            align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.45);
-            z-index: 300;
-        }
+        /* ── Схемы (используются и в модальном окне, и в навигаторе) ── */
+        #line-diagram-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); z-index: 300; }
         #line-diagram-panel {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 18px;
-            width: min(430px, 90vw);
-            max-height: 82vh;
-            overflow-y: auto;
-            padding: 26px 28px 22px;
-            position: relative;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.35);
-            transition: background-color 0.3s, border-color 0.3s;
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px;
+            width: min(430px, 90vw); max-height: 82vh; overflow-y: auto; padding: 26px 28px 22px;
+            position: relative; box-shadow: 0 25px 60px rgba(0,0,0,0.35); transition: background-color 0.3s, border-color 0.3s;
         }
-        #line-diagram-close {
-            position: absolute; top: 16px; right: 18px;
-            cursor: pointer; font-size: 1.5em; line-height: 1;
-            color: var(--panel-close);
-        }
-        #line-diagram-close:hover { color: var(--panel-close-h); }
-        #line-diagram-title { margin: 0 30px 4px 0; font-size: 1.25em; color: var(--panel-h2); }
-        #line-diagram-subtitle { margin: 0 0 20px 0; font-size: 0.85em; color: var(--panel-p); }
-
-        .diagram-track {
-            position: relative;
-            margin-left: 12px;
-            padding-left: 24px;
-            border-left: 5px solid var(--track-color, #999);
-        }
+        
+        .diagram-track { position: relative; margin-left: 12px; padding-left: 24px; border-left: 5px solid var(--track-color, #999); }
         .diagram-row { position: relative; padding: 9px 0 9px 16px; }
         .diagram-node {
-            position: absolute; left: -34.5px; top: 13px;
-            width: 16px; height: 16px; border-radius: 50%;
-            background-color: var(--track-color, #999);
-            border: 3px solid var(--panel-bg);
-            box-shadow: 0 0 0 2px var(--track-color, #999);
-            transition: border-color 0.3s;
+            position: absolute; left: -34.5px; top: 13px; width: 16px; height: 16px; border-radius: 50%;
+            background-color: var(--track-color, #999); border: 3px solid var(--panel-bg);
+            box-shadow: 0 0 0 2px var(--track-color, #999); transition: border-color 0.3s;
         }
         .diagram-node--transfer { background-color: var(--panel-bg); }
         .diagram-station-name { font-weight: 700; color: var(--panel-line); font-size: 0.98em; }
         .diagram-row-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
-        .diagram-dot {
-            width: 11px; height: 11px; border-radius: 50%; display: inline-block;
-            box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5);
-        }
+        .diagram-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5); }
         .diagram-mod { font-size: 0.76em; font-weight: 700; color: #c0392b; }
         .diagram-mod-ok { font-size: 0.76em; font-weight: 700; color: #27ae60; }
-        .diagram-branch-label {
-            margin: 4px 0 2px 16px; font-size: 0.8em; font-weight: 700;
-            color: var(--panel-p); letter-spacing: 0.02em;
-        }
+        .diagram-branch-label { margin: 4px 0 2px 16px; font-size: 0.8em; font-weight: 700; color: var(--panel-p); letter-spacing: 0.02em; }
         .diagram-branch-wrap {
-            margin-left: 32px; padding-left: 18px;
+            margin-left: 32px;
+            padding-left: 18px;
             border-left: 3px dashed var(--track-color, #999);
             opacity: 0.9;
+        }
+        
+        /* Специфика навигатора */
+        .nav-transfer-row {
+            margin: 8px 0 8px 12px; padding: 6px 12px; border-radius: 8px; background: var(--btn-hover-bg);
+            font-size: 0.85em; font-weight: 700; color: var(--panel-h2); display: flex; align-items: center; gap: 8px;
         }
     </style>
 </head>
 <body>
 
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true">
+        <defs>
+            <filter id="protanopia"><feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+            <filter id="deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+            <filter id="tritanopia"><feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+        </defs>
+    </svg>
+
+    <div id="y-height-label">ВСЯ МАГИСТРАЛЬ СТОИТ НА Y:93 ВЫСОТЕ</div>
+
+    <!-- Поисковая строка -->
+    <div id="search-container">
+        <input type="text" id="station-search-input" placeholder="🔍 Поиск станции...">
+        <div id="search-results-list"></div>
+    </div>
+
     <div id="controls">
+        <button class="control-btn" id="lang-toggle" title="English / Русский">🌐</button>
+        <button class="control-btn" id="nav-toggle" title="Навигатор">🧭</button>
+        <div style="position: relative;">
+            <button class="control-btn" id="colorblind-toggle" title="Режим для дальтоников">👁️</button>
+            <div id="cb-menu">
+                <h4 class="i18n-cbTitle">Режимы для дальтоников</h4>
+                <button class="cb-btn active" data-filter="none" id="cb-btn-none">Обычный</button>
+                <button class="cb-btn" data-filter="url(#protanopia)" id="cb-btn-prota">Протанопия</button>
+                <button class="cb-btn" data-filter="url(#deuteranopia)" id="cb-btn-deuta">Дейтеранопия</button>
+                <button class="cb-btn" data-filter="url(#tritanopia)" id="cb-btn-trita">Тританопия</button>
+            </div>
+        </div>
         <button class="control-btn" id="zoom-in">+</button>
         <button class="control-btn" id="zoom-out">−</button>
         <button class="control-btn" id="zoom-reset">⟲</button>
@@ -296,17 +348,36 @@
             <rect id="grid-background" x="-20000" y="-20000" width="60000" height="60000" fill="url(#grid-major)"/>
             <g id="viewport-group">
                 <g id="lines-layer"></g>
-                <g id="stations-layer"></g>
+                <g id="routing-layer"></g> <g id="stations-layer"></g>
             </g>
         </svg>
     </div>
 
-    <div id="info-panel">
-        <span id="close-panel">&times;</span>
+    <div id="info-panel" class="side-panel">
+        <span class="panel-close" id="close-info">&times;</span>
         <h2 id="info-station-name">Название Станции</h2>
-        <p>Доступные маршруты:</p>
+        <p id="info-routes-label">Доступные маршруты:</p>
         <ul class="line-list" id="info-line-list"></ul>
-        <div id="info-mod" style="display:none; margin-top:12px; padding:7px 12px; border-radius:8px; font-size:0.88em; font-weight:700; letter-spacing:0.01em;"></div>
+        <div id="info-coords" style="margin-top:12px; font-size:0.95em; color:var(--panel-h2);"></div>
+        <div id="info-mod" style="display:none; margin-top:8px; padding:7px 12px; border-radius:8px; font-size:0.88em; font-weight:700; letter-spacing:0.01em;"></div>
+    </div>
+
+    <div id="nav-panel" class="side-panel">
+        <span class="panel-close" id="close-nav">&times;</span>
+        <h2 class="i18n-navTitle">Навигатор</h2>
+        <div class="nav-form-group">
+            <label class="i18n-navFrom">Откуда:</label>
+            <select id="nav-select-from" class="nav-select"></select>
+        </div>
+        <div class="nav-form-group">
+            <label class="i18n-navTo">Куда:</label>
+            <select id="nav-select-to" class="nav-select"></select>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn nav-btn-primary i18n-navBtn" id="nav-btn-find">Построить маршрут</button>
+            <button class="nav-btn i18n-navClear" id="nav-btn-clear">Сбросить</button>
+        </div>
+        <div id="nav-results"></div>
     </div>
 
     <div id="line-popup">
@@ -317,7 +388,7 @@
 
     <div id="line-diagram-overlay">
         <div id="line-diagram-panel">
-            <span id="line-diagram-close">&times;</span>
+            <span class="panel-close" id="line-diagram-close">&times;</span>
             <h2 id="line-diagram-title"></h2>
             <p id="line-diagram-subtitle">Все станции и пересадки маршрута</p>
             <div id="line-diagram-body"></div>
@@ -325,148 +396,83 @@
     </div>
 
     <script>
-        // --- БАЗА ДАННЫХ СТАНЦИЙ ---
-        const stationsData = {
-            // Синяя ветка (теперь единственная на ДаунТауне)
-            'almaz_shahta_gs': { name: 'Алмазная шахта ГС', x: 648, y: 324, lines: ['blue'], labelPos: 'top' },
-            'downtown_02': { name: 'ДаунТаун 2.0', x: 907.2, y: 324, lines: ['blue'], labelPos: 'top' },
-            'downtown': { name: 'ДаунТаун', x: 1123.2, y: 324, lines: ['blue'], labelPos: 'top' },
-            'spavn_ni': { name: 'Площадь Спавна Е.И.', x: 1123.2, y: 756, lines: ['blue'], labelPos: 'left', mod: true },
-            'sudebnaya': { name: 'Судебная область', x: 1404, y: 972, lines: ['blue', 'green'], labelPos: 'bottom' },
-            
-            // Фиолетовая ветка (проходит ниже, имеет развилку)
-            'os3': { name: 'Орден Святой Земли (ОСЗ)', x: 820.8, y: 518.4, lines: ['purple'], labelPos: 'bottom' },
-            'onostolgii': { name: 'Остров Ностальгии', x: 1252.8, y: 518.4, lines: ['purple'], labelPos: 'top' },
-            'kashkin': { name: 'Кашиик', x: 1252.8, y: 648, lines: ['purple'], labelPos: 'bottom' },
-            'ind_rayon_gs': { name: 'Индустриальный район ГС', x: 1512, y: 518.4, lines: ['purple', 'pink'], labelPos: 'top-right' },
-            
-            // Розовая ветка (соединяется у Индустриального района)
-            'gold_farm': { name: 'Ферма Золота', x: 1339.2, y: 108, lines: ['pink'], labelPos: 'top' },
-            'china_base': { name: 'Китайская база', x: 1620, y: 216, lines: ['pink'], labelPos: 'right' },
-            
-            // Зеленая ветка
-            'portal_end': { name: 'Главный Портал в Энд', x: 648, y: 1188, lines: ['green'], labelPos: 'bottom' },
-            
-            // Хаб
-            'geocity': { name: 'ГеоСити - Терминал', x: 1987.2, y: 756, lines: ['blue', 'purple', 'green', 'yellow', 'red', 'crimson'], labelPos: 'top-right' },
-            
-            // Бирюзовая ветка (отдельная от красной, не заходит на Костовск)
-            'chanki': { name: 'Чанки', x: 1080, y: 1404, lines: ['cyan'], labelPos: 'top', mod: true },
-            
-            // Красная ветка
-            'kostovsk': { name: 'Костовск', x: 1728, y: 1728, lines: ['red'], labelPos: 'right', mod: true },
-            'ssg': { name: 'ССГ', x: 1620, y: 1987.2, lines: ['red'], labelPos: 'right' },
-            
-            // Желтая ветка
-            'arhei': { name: 'Архея', x: 2203.2, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
-            'hamistan': { name: 'Хайастан', x: 2484, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
-
-            // Ответвление красной ветки между Костовском и ССГ
-            'krepost_ssg': { name: 'Крепость ССГ', x: 1980, y: 1872, lines: ['red'], labelPos: 'right', mod: true },
-
-            // Малиновая ветка + монорельс (новые станции, модернизация не требуется)
-            'velikogo_naslediya': { name: 'Станция великого наследия', x: 2140, y: 940, lines: ['crimson', 'monorail'], labelPos: 'top' },
-            'kultury': { name: 'Станция Культуры', x: 2240, y: 1260, lines: ['crimson', 'monorail'], labelPos: 'right' }
-        };
-
-        // --- ГЕОМЕТРИЧЕСКАЯ МАРШРУТИЗАЦИЯ ---
-        const linesData = {
-            'blue': { 
-                color: '#0033A0', name: 'Синяя ветка',
-                route: [
-                    'almaz_shahta_gs', 'downtown_02', 'downtown', 
-                    'spavn_ni', {x: 1123.2, y: 928.8}, 'sudebnaya', 
-                    {x: 1636.8, y: 945.6}, {x: 1788, y: 756}, 'geocity'
-                ] 
+        let lang = 'ru';
+        const i18n = {
+            'ru': {
+                'yHeight': 'ВСЯ МАГИСТРАЛЬ СТОИТ НА Y:93 ВЫСОТЕ',
+                'cbTitle': 'Режим для дальтоников', 'cbNone': 'Обычный', 'cbProta': 'Протанопия', 'cbDeuta': 'Дейтеранопия', 'cbTrita': 'Тританопия',
+                'diagramSub': 'Все станции и пересадки маршрута', 'linePopupBtn': 'Линейная схема →', 'routesLabel': 'Доступные маршруты:',
+                'modReqTitle': 'Требуется модернизация:', 'req': 'требуется', 'notReq': 'не требуется',
+                'modReqBadge': 'требуется модернизация', 'modNotReqBadge': 'модернизация не требуется',
+                'navTitle': 'Навигатор', 'navFrom': 'Откуда:', 'navTo': 'Куда:', 'navBtn': 'Построить', 'navClear': 'Сбросить',
+                'navError': 'Маршрут не найден', 'navTransfer': 'Пересадка на',
+                'searchPlaceholder': '🔍 Поиск станции...'
             },
-            'green': { 
-                color: '#00A859', name: 'Зеленая ветка',
-                route: [
-                    'portal_end', {x: 648, y: 972}, 'sudebnaya', 
-                    {x: 1620, y: 928.8}, {x: 1771.2, y: 756}, 'geocity'
-                ] 
-            },
-            // Верхняя часть фиолетовой вилки
-            'purple_top': { 
-                color: '#8E44AD', name: 'Фиолетовая ветка',
-                route: [
-                    'os3', {x: 1036.8, y: 518.4}, 'onostolgii', 
-                    'ind_rayon_gs', {x: 1684.8, y: 518.4}, {x: 1836, y: 756}, 'geocity'
-                ] 
-            },
-            // Нижняя часть фиолетовой вилки (через Кашиик)
-            'purple_bottom': { 
-                color: '#8E44AD', name: 'Фиолетовая ветка',
-                route: [
-                    {x: 1036.8, y: 518.4}, {x: 1036.8, y: 648}, 'kashkin', 
-                    {x: 1576.8, y: 648}, {x: 1684.8, y: 518.4}
-                ] 
-            },
-            // Основной ствол розовой
-            'pink_main': { 
-                color: '#F482B6', name: 'Розовая ветка',
-                route: ['gold_farm', {x: 1339.2, y: 324}, {x: 1468.8, y: 432}, 'ind_rayon_gs'] 
-            },
-            // Ответвление Китайской базы
-            'pink_branch': { 
-                color: '#F482B6', name: 'Розовая ветка',
-                route: ['china_base', {x: 1404, y: 216}, {x: 1339.2, y: 216}] 
-            },
-            'red_main': { 
-                color: '#E3000F', name: 'Красная ветка',
-                route: ['geocity', {x: 1956, y: 984}, {x: 1926, y: 1152}, {x: 1800, y: 1320}, 'kostovsk', {x: 1728, y: 1872}, 'ssg'] 
-            },
-            // Ответвление к Крепости ССГ
-            'red_branch': { 
-                color: '#E3000F', name: 'Красная ветка',
-                route: [{x: 1728, y: 1872}, 'krepost_ssg'] 
-            },
-            // Бирюзовая ветка — прямая линия от Чанки до точки на красной ветке, как на эскизе
-            'cyan': { 
-                color: '#00BCE4', name: 'Бирюзовая ветка',
-                route: ['chanki', {x: 1785.6, y: 1404}] 
-            },
-            'yellow': { 
-                color: '#FFD100', name: 'Желтая ветка',
-                route: ['geocity', {x: 1972.8, y: 984}, {x: 1942.8, y: 1152}, 'arhei', 'hamistan'] 
-            },
-            // Малиновая ветка — идёт параллельно красной и желтой от ГеоСити,
-            // затем поворачивает на 90° ДО поворота желтой к Архее, идёт прямо
-            // и снова поворачивает на юг к конечной станции
-            'crimson': { 
-                color: '#E6007E', name: 'Малиновая ветка',
-                route: [
-                    'geocity', {x: 2000, y: 850}, {x: 2000, y: 940}, 
-                    'velikogo_naslediya', {x: 2240, y: 940}, 'kultury'
-                ] 
-            },
-            // Монорельс — отдельная связь между теми же двумя станциями,
-            // проложена петлёй в стороне от основной линии (как на эскизе)
-            'monorail': { 
-                color: '#B19CD9', name: 'Монорельс',
-                route: [
-                    'velikogo_naslediya', {x: 2100, y: 940}, {x: 2100, y: 1260}, 'kultury'
-                ] 
+            'en': {
+                'yHeight': 'THE ENTIRE MAINLINE STANDS AT Y:93 HEIGHT',
+                'cbTitle': 'Colorblind Mode', 'cbNone': 'Normal', 'cbProta': 'Protanopia', 'cbDeuta': 'Deuteranopia', 'cbTrita': 'Tritanopia',
+                'diagramSub': 'All stations and transfers', 'linePopupBtn': 'Line diagram →', 'routesLabel': 'Available routes:',
+                'modReqTitle': 'Modernization required:', 'req': 'required', 'notReq': 'not required',
+                'modReqBadge': 'modernization required', 'modNotReqBadge': 'modernization not required',
+                'navTitle': 'Navigator', 'navFrom': 'From:', 'navTo': 'To:', 'navBtn': 'Find Route', 'navClear': 'Clear',
+                'navError': 'Route not found', 'navTransfer': 'Transfer to',
+                'searchPlaceholder': '🔍 Search station...'
             }
         };
 
+        const stationsData = {
+            'almaz_shahta_gs': { name: {ru: 'Алмазная шахта ГС', en: 'Diamond mine of GeoCity Station'}, mcX: -1906, mcZ: -500, x: 648, y: 324, lines: ['blue'], labelPos: 'top' },
+            'downtown_02': { name: {ru: 'ДаунТаун 2.0', en: 'DownTown 2.0 station'}, mcX: -751, mcZ: -840, x: 907.2, y: 324, lines: ['blue'], labelPos: 'top' },
+            'downtown': { name: {ru: 'ДаунТаун', en: 'DownTown station'}, mcX: -553, mcZ: -763, x: 1123.2, y: 324, lines: ['blue'], labelPos: 'top' },
+            'spavn_ni': { name: {ru: 'Площадь Спавна Е.И.', en: 'Spawn Square Station - Natural History'}, mcX: -554, mcZ: -270, x: 1123.2, y: 756, lines: ['blue'], labelPos: 'left', mod: true },
+            'sudebnaya': { name: {ru: 'Судебная область', en: 'Court Square Station'}, mcX: 0, mcZ: -10, x: 1404, y: 972, lines: ['blue', 'green'], labelPos: 'bottom' },
+            'os3': { name: {ru: 'Орден Святой Земли (ОСЗ)', en: 'Orden of Holy Land (OHL)'}, mcX: -962, mcZ: -670, x: 820.8, y: 518.4, lines: ['purple'], labelPos: 'bottom' },
+            'onostolgii': { name: {ru: 'Остров Ностальгии', en: 'Nostalgia Island Station'}, mcX: -322, mcZ: -594, x: 1252.8, y: 518.4, lines: ['purple'], labelPos: 'top' },
+            'kashkin': { name: {ru: 'Кашиик', en: 'Kashyyyk Station'}, mcX: -361, mcZ: -439, x: 1252.8, y: 648, lines: ['purple'], labelPos: 'bottom' },
+            'ind_rayon_gs': { name: {ru: 'Индустриальный район ГС', en: 'GeoCity Industrial area'}, mcX: -24, mcZ: -600, x: 1512, y: 518.4, lines: ['purple', 'pink'], labelPos: 'top-right' },
+            'gold_farm': { name: {ru: 'Ферма Золота', en: 'Gold farm station'}, mcX: 5, mcZ: -2013, x: 1339.2, y: 108, lines: ['pink'], labelPos: 'top' },
+            'china_base': { name: {ru: 'Китайская база', en: 'Chinese Base Station'}, mcX: 394, mcZ: -1195, x: 1620, y: 216, lines: ['pink'], labelPos: 'right' },
+            'portal_end': { name: {ru: 'Главный Портал в Энд', en: 'Main The End portal'}, mcX: -1006, mcZ: 1225, x: 648, y: 1188, lines: ['green'], labelPos: 'bottom' },
+            'geocity': { name: {ru: 'ГеоСити - Терминал', en: 'GeoCity Subway Terminal'}, mcX: 680, mcZ: -180, x: 1987.2, y: 756, lines: ['blue', 'purple', 'green', 'yellow', 'cyan', 'magenta', 'red'], labelPos: 'top-right' },
+            'chanki': { name: {ru: 'Чанки', en: 'ChunkS Station'}, mcX: -1173, mcZ: 2540, x: 1080, y: 1404, lines: ['cyan'], labelPos: 'top', mod: true },
+            'kostovsk': { name: {ru: 'Костовск', en: 'Kostovsk Station'}, mcX: 307, mcZ: 4798, x: 1728, y: 1728, lines: ['red'], labelPos: 'right', mod: true },
+            'ssg': { name: {ru: 'ССГ', en: 'USC Station'}, mcX: -277, mcZ: 5507, x: 1620, y: 1987.2, lines: ['red'], labelPos: 'right' },
+            'arhei': { name: {ru: 'Архея', en: 'Archea Station'}, mcX: 481, mcZ: 2038, x: 2203.2, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
+            'hamistan': { name: {ru: 'Хайастан', en: 'Hayastan station'}, mcX: 1454, mcZ: 2038, x: 2484, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
+            'krepost_ssg': { name: {ru: 'Крепость ССГ', en: 'USC fort station'}, mcX: -141, mcZ: 5467, x: 1980, y: 1872, lines: ['red'], labelPos: 'right', mod: true },
+            'velikogo_naslediya': { name: {ru: 'Станция великого наследия', en: 'Great Legacy Station'}, mcX: 1078, mcZ: 934, x: 2140, y: 940, lines: ['magenta', 'monorail'], labelPos: 'top' },
+            'kultury': { name: {ru: 'Станция Культуры', en: 'Station of the Culture'}, mcX: 1078, mcZ: 1193, x: 2240, y: 1260, lines: ['magenta', 'monorail'], labelPos: 'right' }
+        };
+
+        const linesData = {
+            'blue': { color: '#0033A0', name: {ru: 'Синяя ветка', en: 'Blue Line'}, route: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', {x: 1123.2, y: 928.8}, 'sudebnaya', {x: 1636.8, y: 945.6}, {x: 1788, y: 756}, 'geocity'] },
+            'green': { color: '#00A859', name: {ru: 'Зеленая ветка', en: 'Green Line'}, route: ['portal_end', {x: 648, y: 972}, 'sudebnaya', {x: 1620, y: 928.8}, {x: 1771.2, y: 756}, 'geocity'] },
+            'purple_top': { color: '#8E44AD', name: {ru: 'Фиолетовая ветка', en: 'Violet Line'}, route: ['os3', {x: 1036.8, y: 518.4}, 'onostolgii', 'ind_rayon_gs', {x: 1684.8, y: 518.4}, {x: 1836, y: 756}, 'geocity'] },
+            'purple_bottom': { color: '#8E44AD', name: {ru: 'Фиолетовая ветка', en: 'Violet Line'}, route: [{x: 1036.8, y: 518.4}, {x: 1036.8, y: 648}, 'kashkin', {x: 1576.8, y: 648}, {x: 1684.8, y: 518.4}] },
+            'pink_main': { color: '#F482B6', name: {ru: 'Розовая ветка', en: 'Pink Line'}, route: ['gold_farm', {x: 1339.2, y: 216}, {x: 1339.2, y: 324}, {x: 1468.8, y: 432}, 'ind_rayon_gs'] },
+            'pink_branch': { color: '#F482B6', name: {ru: 'Розовая ветка', en: 'Pink Line'}, route: ['china_base', {x: 1404, y: 216}, {x: 1339.2, y: 216}] },
+            'cyan': { color: '#00BCE4', name: {ru: 'Бирюзовая ветка', en: 'Cyan Line'}, route: ['chanki', {x: 1785.6, y: 1404}, {x: 1800, y: 1320}, {x: 1926, y: 1152}, {x: 1956, y: 984}, 'geocity'] },
+            'red_main': { color: '#E3000F', name: {ru: 'Красная ветка', en: 'Red Line'}, route: ['geocity', {x: 1850, y: 1100}, {x: 1785.6, y: 1404}, 'kostovsk', {x: 1728, y: 1872}, 'ssg'] },
+            'red_branch': { color: '#E3000F', name: {ru: 'Красная ветка', en: 'Red Line'}, route: [{x: 1728, y: 1872}, 'krepost_ssg'] },
+            'yellow': { color: '#FFD100', name: {ru: 'Желтая ветка', en: 'Yellow Line'}, route: ['geocity', {x: 1972.8, y: 984}, {x: 1942.8, y: 1152}, 'arhei', 'hamistan'] },
+            'magenta': { color: '#FF00FF', name: {ru: 'Пурпурная ветка', en: 'Magenta Line'}, route: ['geocity', {x: 2000, y: 850}, {x: 2000, y: 940}, 'velikogo_naslediya', {x: 2240, y: 940}, 'kultury'] },
+            'monorail': { color: '#B19CD9', name: {ru: 'Монорельс', en: 'Monorail'}, route: ['velikogo_naslediya', {x: 2100, y: 940}, {x: 2100, y: 1260}, 'kultury'] }
+        };
+
         const linesLayer = document.getElementById('lines-layer');
+        const routingLayer = document.getElementById('routing-layer');
         const stationsLayer = document.getElementById('stations-layer');
         const infoPanel = document.getElementById('info-panel');
+        const navPanel = document.getElementById('nav-panel');
 
-        // Универсальный поиск цвета линии (учитывает ветки вида purple_top/purple_bottom, pink_main/pink_branch и т.д.)
         function getLineColor(lineId) {
             if (linesData[lineId]) return linesData[lineId].color;
             const variantKey = Object.keys(linesData).find(key => key.startsWith(lineId + '_'));
             return variantKey ? linesData[variantKey].color : '#999999';
         }
-
         function getLineRef(lineId) {
-            return linesData[lineId]
-                || linesData[Object.keys(linesData).find(key => key.startsWith(lineId + '_'))];
+            return linesData[lineId] || linesData[Object.keys(linesData).find(key => key.startsWith(lineId + '_'))];
         }
-
-        // Логическое семейство линии (объединяет ветки вида purple_top/purple_bottom и т.д.)
         function getLineFamily(lineId) {
             if (lineId.startsWith('purple')) return 'purple';
             if (lineId.startsWith('pink')) return 'pink';
@@ -474,294 +480,146 @@
             return lineId;
         }
 
-        // --- ДАННЫЕ ДЛЯ ЛИНЕЙНЫХ СХЕМ (порядок станций по каждой линии, с учётом веток) ---
-        const lineDiagrams = {
-            blue:    { name: 'Синяя ветка',      color: '#0033A0', stations: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', 'sudebnaya', 'geocity'] },
-            green:   { name: 'Зеленая ветка',     color: '#00A859', stations: ['portal_end', 'sudebnaya', 'geocity'] },
-            purple:  { name: 'Фиолетовая ветка',  color: '#8E44AD', stations: ['os3', 'onostolgii', 'ind_rayon_gs', 'geocity'],
-                       branch: { afterId: 'os3', label: 'ответвление через Кашиик', stations: ['kashkin'] } },
-            pink:    { name: 'Розовая ветка',     color: '#F482B6', stations: ['gold_farm', 'ind_rayon_gs'],
-                       branch: { afterId: 'gold_farm', label: 'ответвление к Китайской базе', stations: ['china_base'] } },
-            red:     { name: 'Красная ветка',     color: '#E3000F', stations: ['geocity', 'kostovsk', 'ssg'],
-                       branch: { afterId: 'kostovsk', label: 'ответвление к Крепости ССГ', stations: ['krepost_ssg'] } },
-            cyan:    { name: 'Бирюзовая ветка',   color: '#00BCE4', stations: ['chanki'] },
-            yellow:  { name: 'Желтая ветка',      color: '#FFD100', stations: ['geocity', 'arhei', 'hamistan'] },
-            crimson: { name: 'Малиновая ветка',   color: '#E6007E', stations: ['geocity', 'velikogo_naslediya', 'kultury'] },
-            monorail:{ name: 'Монорельс',         color: '#B19CD9', stations: ['velikogo_naslediya', 'kultury'] }
-        };
+        function highlightStationLines(station) {
+            const allLines = document.querySelectorAll('.metro-line');
+            if (!station) {
+                allLines.forEach(line => {
+                    line.classList.remove('line-dimmed', 'line-highlight');
+                });
+                return;
+            }
+            const activeFamilies = station.lines.map(l => getLineFamily(l));
+            allLines.forEach(line => {
+                const isMatch = activeFamilies.some(fam => line.classList.contains(`logic-line-${fam}`));
+                if (isMatch) {
+                    line.classList.add('line-highlight');
+                    line.classList.remove('line-dimmed');
+                } else {
+                    line.classList.remove('line-highlight');
+                    line.classList.add('line-dimmed');
+                }
+            });
+        }
 
-        // Алгоритм скругления линий
         function generateRoundedPath(routeArray, radius = 40) {
             const pts = routeArray.map(item => typeof item === 'string' ? stationsData[item] : item);
             if (pts.length < 2) return '';
             if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
-
             let d = `M ${pts[0].x} ${pts[0].y} `;
             for (let i = 1; i < pts.length - 1; i++) {
                 const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
                 const d0x = p0.x - p1.x, d0y = p0.y - p1.y;
-                const len0 = Math.sqrt(d0x * d0x + d0y * d0y);
-                const d2x = p2.x - p1.x, d2y = p2.y - p1.y;
-                const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
-
+                const len0 = Math.sqrt(d0x * d0x + d0y * d0y), len2 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
                 if (len0 === 0 || len2 === 0) continue;
                 const r = Math.min(radius, len0 / 2.1, len2 / 2.1);
-
-                const qStartX = p1.x + (d0x / len0) * r;
-                const qStartY = p1.y + (d0y / len0) * r;
-                const qEndX = p1.x + (d2x / len2) * r;
-                const qEndY = p1.y + (d2y / len2) * r;
-
-                d += `L ${qStartX} ${qStartY} Q ${p1.x} ${p1.y} ${qEndX} ${qEndY} `;
+                d += `L ${p1.x + (d0x / len0) * r} ${p1.y + (d0y / len0) * r} Q ${p1.x} ${p1.y} ${p1.x + ((p2.x - p1.x) / len2) * r} ${p1.y + ((p2.y - p1.y) / len2) * r} `;
             }
-            d += `L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
-            return d;
+            return d + `L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
         }
 
-        // Отрисовка линий
+        const lineDiagrams = {
+            blue: {
+                name: {ru: 'Синяя ветка', en: 'Blue Line'},
+                color: '#0033A0',
+                stations: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', 'sudebnaya', 'geocity']
+            },
+            green: {
+                name: {ru: 'Зеленая ветка', en: 'Green Line'},
+                color: '#00A859',
+                stations: ['portal_end', 'sudebnaya', 'geocity']
+            },
+            purple: {
+                name: {ru: 'Фиолетовая ветка', en: 'Violet Line'},
+                color: '#8E44AD',
+                stations: ['os3', 'onostolgii', 'ind_rayon_gs', 'geocity'],
+                branch: {afterId: 'os3', label: {ru: 'ответвление через Кашиик', en: 'branch via Kashyyyk'}, stations: ['kashkin']}
+            },
+            pink: {
+                name: {ru: 'Розовая ветка', en: 'Pink Line'},
+                color: '#F482B6',
+                stations: ['gold_farm', 'ind_rayon_gs'],
+                branch: {afterId: 'gold_farm', label: {ru: 'ответвление к Китайской базе', en: 'branch to Chinese Base'}, stations: ['china_base']}
+            },
+            red: {
+                name: {ru: 'Красная ветка', en: 'Red Line'},
+                color: '#E3000F',
+                stations: ['geocity', 'kostovsk', 'ssg'],
+                branch: {afterId: 'kostovsk', label: {ru: 'ответвление к Крепости ССГ', en: 'branch to USC Fort'}, stations: ['krepost_ssg']}
+            },
+            cyan: {
+                name: {ru: 'Бирюзовая ветка', en: 'Cyan Line'},
+                color: '#00BCE4',
+                stations: ['chanki', 'geocity']
+            },
+            yellow: {
+                name: {ru: 'Желтая ветка', en: 'Yellow Line'},
+                color: '#FFD100',
+                stations: ['geocity', 'arhei', 'hamistan']
+            },
+            magenta: {
+                name: {ru: 'Пурпурная ветка', en: 'Magenta Line'},
+                color: '#FF00FF',
+                stations: ['geocity', 'velikogo_naslediya', 'kultury']
+            },
+            monorail: {
+                name: {ru: 'Монорельс', en: 'Monorail'},
+                color: '#B19CD9',
+                stations: ['velikogo_naslediya', 'kultury']
+            }
+        };
+
+        let currentLineForDiagram = null;
         Object.keys(linesData).forEach(lineId => {
             const line = linesData[lineId];
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            
-            // Группируем логические ветви для правильной подсветки и для клика (линейная схема)
             const logicClass = getLineFamily(lineId);
-            const dashClass = lineId === 'monorail' ? ' monorail-dash' : '';
-
-            path.setAttribute('id', `line-${lineId}`);
-            path.setAttribute('class', `metro-line logic-line-${logicClass}${dashClass}`);
+            path.setAttribute('class', `metro-line logic-line-${logicClass}${lineId === 'monorail' ? ' monorail-dash' : ''}`);
             path.setAttribute('stroke', line.color);
             path.setAttribute('d', generateRoundedPath(line.route));
-            path.setAttribute('data-family', logicClass);
-            linesLayer.appendChild(path);
-
-            // Клик по линии — показать всплывающую кнопку для открытия линейной схемы
-            path.addEventListener('click', e => {
+            
+            path.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (dragMoved) return;
-                showLinePopup(logicClass, e);
+                if (document.getElementById('map-container').classList.contains('routing-active')) return;
+                
+                currentLineForDiagram = logicClass;
+                const color = getLineColor(logicClass);
+                const ref = getLineRef(logicClass);
+                
+                document.getElementById('line-popup-swatch').style.backgroundColor = color;
+                document.getElementById('line-popup-name').textContent = ref.name[lang];
+                document.getElementById('line-popup-btn').textContent = i18n[lang].linePopupBtn;
+                
+                const popup = document.getElementById('line-popup');
+                popup.style.display = 'flex';
+                popup.style.left = e.clientX + 'px';
+                popup.style.top = e.clientY + 'px';
             });
+
+            linesLayer.appendChild(path);
         });
-
-        // Точки слияния безымянные
-        function drawConnectionPoint(x, y, color) {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', x);
-            circle.setAttribute('cy', y);
-            circle.setAttribute('r', 5.5);
-            circle.setAttribute('fill', color);
-            linesLayer.appendChild(circle);
-        }
-        drawConnectionPoint(1036.8, 518.4, '#8E44AD'); // Развилка фиолетовой
-        drawConnectionPoint(1684.8, 518.4, '#8E44AD'); // Слияние фиолетовой
-        drawConnectionPoint(1339.2, 216, '#F482B6'); // Развилка розовой
-        drawConnectionPoint(1728, 1872, '#E3000F'); // Развилка красной (Крепость ССГ)
-        drawConnectionPoint(1785.6, 1404, '#00BCE4'); // Стык бирюзовой с красной (выше Костовска, как на эскизе)
-
-        // Отрисовка станций
-        // Невидимый элемент для замера ширины текста
-        const _measureG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        _measureG.setAttribute('opacity', '0');
-        _measureG.setAttribute('pointer-events', 'none');
-        document.getElementById('viewport-group').appendChild(_measureG);
-
-        function measureTextWidth(content) {
-            const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            t.setAttribute('class', 'station-label');
-            t.setAttribute('x', '0');
-            t.setAttribute('y', '0');
-            t.textContent = content;
-            _measureG.appendChild(t);
-            const w = t.getBBox().width;
-            _measureG.removeChild(t);
-            return w;
-        }
-
-        Object.keys(stationsData).forEach(stationId => {
-            const station = stationsData[stationId];
-            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.setAttribute('class', 'station-group');
-            group.setAttribute('data-id', stationId);
-
-            // Кружок станции
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('class', 'station');
-            circle.setAttribute('cx', station.x);
-            circle.setAttribute('cy', station.y);
-            if (station.lines.length > 1) {
-                circle.setAttribute('r', 11);
-                circle.setAttribute('fill', 'white');
-                circle.setAttribute('stroke', '#222');
-                circle.setAttribute('stroke-width', 3);
-            } else {
-                circle.setAttribute('r', 8);
-                circle.setAttribute('fill', getLineColor(station.lines[0]));
-                circle.setAttribute('stroke-width', 2);
-            }
-
-            // Параметры точек
-            const dotR   = 6;
-            const dotGap = 4;
-            const dotStep = dotR * 2 + dotGap;
-            const nLines  = station.lines.length;
-            const dotsW   = nLines * dotStep - dotGap;
-            const textGap = 8; // между точками и текстом
-
-            // Позиция текста относительно станции (базовые отступы)
-            let dx = 18, dy = 6;
-            if (station.labelPos === 'bottom')      { dx =  0;  dy =  32; }
-            else if (station.labelPos === 'top')    { dx =  0;  dy = -20; }
-            else if (station.labelPos === 'left')   { dx = -20; dy =   6; }
-            else if (station.labelPos === 'right')  { dx =  20; dy =   6; }
-            else if (station.labelPos === 'top-right')   { dx = 18; dy = -18; }
-            else if (station.labelPos === 'bottom-left') { dx = -18; dy =  28; }
-
-            const textY = station.y + dy;
-            const dotCY = textY - dotR + 1; // вертикально центрировать точки по строке текста
-
-            // Замеряем ширину текста, чтобы правильно центрировать для top/bottom
-            const tWidth = measureTextWidth(station.name);
-            const totalW = dotsW + textGap + tWidth;
-
-            let dotStartX, textX;
-
-            if (station.labelPos === 'top' || station.labelPos === 'bottom') {
-                // Группа [точки][текст] центрируется над/под станцией
-                dotStartX = station.x - totalW / 2;
-                textX     = dotStartX + dotsW + textGap;
-            } else if (station.labelPos === 'left' || station.labelPos === 'bottom-left') {
-                // Группа заканчивается у станции слева
-                const groupEndX = station.x + dx - 4;
-                dotStartX = groupEndX - totalW;
-                textX     = dotStartX + dotsW + textGap;
-            } else {
-                // right / top-right: группа начинается от станции вправо
-                dotStartX = station.x + dx;
-                textX     = dotStartX + dotsW + textGap;
-            }
-
-            // Рисуем цветные точки линий
-            station.lines.forEach((lineId, i) => {
-                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                dot.setAttribute('cx', dotStartX + dotR + i * dotStep);
-                dot.setAttribute('cy', dotCY);
-                dot.setAttribute('r',  dotR);
-                dot.setAttribute('fill', getLineColor(lineId));
-                dot.setAttribute('class', 'line-dot');
-                group.appendChild(dot);
-            });
-
-            // Текст — всегда anchor='start' (мы сами вычислили textX)
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('class', 'station-label');
-            text.textContent = station.name;
-            text.setAttribute('x', textX);
-            text.setAttribute('y', textY);
-            text.setAttribute('text-anchor', 'start');
-
-            group.appendChild(circle);
-            group.appendChild(text);
-            stationsLayer.appendChild(group);
-
-            // Интерактивность при наведении
-            group.addEventListener('mouseenter', e => {
-                stationsData[e.currentTarget.getAttribute('data-id')].lines.forEach(lineId => {
-                    document.querySelectorAll(`.logic-line-${lineId}`).forEach(el => el.classList.add('line-highlight'));
-                });
-            });
-            group.addEventListener('mouseleave', () => {
-                document.querySelectorAll('.line-highlight').forEach(el => el.classList.remove('line-highlight'));
-            });
-            group.addEventListener('click', handleStationClick);
-        });
-
-        // Клик по станции
-        function handleStationClick(e) {
-            e.stopPropagation();
-            hideLinePopup();
-            const stationId = e.currentTarget.getAttribute('data-id');
-            const station = stationsData[stationId];
-
-            document.getElementById('info-station-name').textContent = station.name;
-            const lineListItems = document.getElementById('info-line-list');
-            lineListItems.innerHTML = '';
-
-            station.lines.forEach(lineId => {
-                const lineRef = getLineRef(lineId);
-                const li = document.createElement('li');
-                li.setAttribute('class', 'line-item');
-                li.innerHTML = `<div class="line-color-swatch" style="background-color: ${lineRef.color}"></div>
-                                <span class="line-name">${lineRef.name}</span>`;
-                lineListItems.appendChild(li);
-            });
-
-            // Поле модернизации
-            const modDiv = document.getElementById('info-mod');
-            const needsMod = !!station.mod;
-            modDiv.style.display = 'block';
-            if (needsMod) {
-                modDiv.innerHTML = '🔧 <span style="opacity:0.7;font-weight:400">Требуется модернизация:</span> <span style="color:#c0392b">требуется</span>';
-                modDiv.style.background = 'rgba(192,57,43,0.10)';
-                modDiv.style.border = '1px solid rgba(192,57,43,0.25)';
-            } else {
-                modDiv.innerHTML = '✅ <span style="opacity:0.7;font-weight:400">Требуется модернизация:</span> <span style="color:#27ae60">не требуется</span>';
-                modDiv.style.background = 'rgba(39,174,96,0.10)';
-                modDiv.style.border = '1px solid rgba(39,174,96,0.25)';
-            }
-
-            infoPanel.style.display = 'block';
-        }
-
-        document.getElementById('close-panel').addEventListener('click', () => infoPanel.style.display = 'none');
-
-        // --- ВСПЛЫВАЮЩАЯ КНОПКА ПРИ КЛИКЕ НА ЛИНИЮ + ЛИНЕЙНАЯ СХЕМА МАРШРУТА ---
-        const linePopup = document.getElementById('line-popup');
-        let activeLineFamily = null;
-
-        function showLinePopup(family, evt) {
-            const info = lineDiagrams[family];
-            if (!info) return;
-            activeLineFamily = family;
-            document.getElementById('line-popup-swatch').style.backgroundColor = info.color;
-            document.getElementById('line-popup-name').textContent = info.name;
-            linePopup.style.left = evt.clientX + 'px';
-            linePopup.style.top = Math.max(evt.clientY, 70) + 'px';
-            linePopup.style.display = 'flex';
-        }
-
-        function hideLinePopup() {
-            linePopup.style.display = 'none';
-            activeLineFamily = null;
-        }
 
         document.getElementById('line-popup-btn').addEventListener('click', e => {
             e.stopPropagation();
-            if (activeLineFamily) openLineDiagram(activeLineFamily);
-            hideLinePopup();
+            document.getElementById('line-popup').style.display = 'none';
+            if (!currentLineForDiagram) return;
+            openLineDiagram(currentLineForDiagram);
         });
 
-        // Клик вне попапа и вне линий — скрыть попап
-        window.addEventListener('mousedown', e => {
-            if (linePopup.style.display === 'flex' && !e.target.closest('#line-popup') && !e.target.closest('.metro-line')) {
-                hideLinePopup();
-            }
-        });
-
-        // Строка одной станции для линейной схемы (сама станция + значки пересадок + модернизация)
         function diagramStationRow(stationId, currentFamily) {
             const st = stationsData[stationId];
             const otherLines = st.lines.filter(l => getLineFamily(l) !== currentFamily);
             const dots = otherLines.map(l =>
-                `<span class="diagram-dot" style="background-color:${getLineColor(l)}" title="${getLineRef(l).name}"></span>`
+                `<span class="diagram-dot" style="background-color:${getLineColor(l)}" title="${getLineRef(l).name[lang]}"></span>`
             ).join('');
             const modBadge = st.mod
-                ? `<span class="diagram-mod">🔧 требуется модернизация</span>`
-                : `<span class="diagram-mod-ok">✅ модернизация не требуется</span>`;
+                ? `<span class="diagram-mod">${i18n[lang].modReqBadge}</span>`
+                : `<span class="diagram-mod-ok">${i18n[lang].modNotReqBadge}</span>`;
 
             return `
                 <div class="diagram-row">
                     <div class="diagram-node${otherLines.length ? ' diagram-node--transfer' : ''}"></div>
-                    <div class="diagram-station-name">${st.name}</div>
-                    <div class="diagram-row-meta">${dots}${modBadge}</div>
+                    <div class="diagram-station-name">${st.name[lang]}</div>
+                    ${(otherLines.length || st.mod) ? `<div class="diagram-row-meta">${dots}${modBadge}</div>` : ''}
                 </div>`;
         }
 
@@ -770,8 +628,9 @@
             if (!info) return;
 
             const title = document.getElementById('line-diagram-title');
-            title.textContent = info.name;
+            title.textContent = info.name[lang];
             title.style.color = info.color;
+            document.getElementById('line-diagram-subtitle').textContent = i18n[lang].diagramSub;
 
             const body = document.getElementById('line-diagram-body');
             let html = `<div class="diagram-track" style="--track-color:${info.color}">`;
@@ -779,10 +638,9 @@
             info.stations.forEach(stId => {
                 html += diagramStationRow(stId, family);
 
-                // Если сразу после этой станции есть ответвление — выводим его отдельным блоком
                 if (info.branch && info.branch.afterId === stId) {
-                    html += `<div class="diagram-branch-label">↳ ${info.branch.label}</div>`;
-                    html += `<div class="diagram-branch-wrap">`;
+                    html += `<div class="diagram-branch-label">↳ ${info.branch.label[lang]}</div>`;
+                    html += `<div class="diagram-branch-wrap" style="--track-color:${info.color}">`;
                     info.branch.stations.forEach(bId => {
                         html += diagramStationRow(bId, family);
                     });
@@ -798,6 +656,7 @@
         function closeLineDiagram() {
             document.getElementById('line-diagram-overlay').style.display = 'none';
         }
+
         document.getElementById('line-diagram-close').addEventListener('click', closeLineDiagram);
         document.getElementById('line-diagram-overlay').addEventListener('click', e => {
             if (e.target.id === 'line-diagram-overlay') closeLineDiagram();
@@ -806,138 +665,476 @@
             if (e.key === 'Escape') closeLineDiagram();
         });
 
-        // Управление картой (Pan & Zoom)
-        const svg = document.getElementById('metro-svg');
-        const container = document.getElementById('map-container');
-        let viewBox = { x: 0, y: 0, w: 2592, h: 2592 };
-        let isPanning = false, startPoint = { x: 0, y: 0 }, scale = 1, dragMoved = false;
-
-        function updateViewBox() { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`); }
-
-        container.addEventListener('mousedown', e => {
-            if (!e.target.closest('.station-group')) {
-                isPanning = true; dragMoved = false; container.classList.add('grabbing');
-                startPoint = { x: e.clientX, y: e.clientY };
-                infoPanel.style.display = 'none';
-                hideLinePopup();
-            }
-        });
-
-        window.addEventListener('mousemove', e => {
-            if (!isPanning) return;
-            const dx = (e.clientX - startPoint.x) * (viewBox.w / container.clientWidth);
-            const dy = (e.clientY - startPoint.y) * (viewBox.h / container.clientHeight);
-            if (Math.abs(e.clientX - startPoint.x) > 3 || Math.abs(e.clientY - startPoint.y) > 3) dragMoved = true;
-            viewBox.x -= dx; viewBox.y -= dy;
-            updateViewBox();
-            startPoint = { x: e.clientX, y: e.clientY };
-        });
-
-        window.addEventListener('mouseup', () => { isPanning = false; container.classList.remove('grabbing'); });
-
-        container.addEventListener('wheel', e => {
-            e.preventDefault();
-            const newScale = Math.max(0.3, Math.min(3, scale - e.deltaY * 0.001));
-            if (newScale === scale) return;
-
-            const rect = container.getBoundingClientRect();
-            const mouseXSVG = viewBox.x + (e.clientX - rect.left) * (viewBox.w / container.clientWidth);
-            const mouseYSVG = viewBox.y + (e.clientY - rect.top) * (viewBox.h / container.clientHeight);
-
-            const zoomFactor = scale / newScale;
-            viewBox.w *= zoomFactor; viewBox.h *= zoomFactor;
-            viewBox.x = mouseXSVG - (e.clientX - rect.left) * (viewBox.w / container.clientWidth);
-            viewBox.y = mouseYSVG - (e.clientY - rect.top) * (viewBox.h / container.clientHeight);
-            scale = newScale; updateViewBox();
-        }, { passive: false });
-
-        function zoomCentered(factor) {
-            const newScale = Math.max(0.3, Math.min(3, scale * factor));
-            const actualFactor = scale / newScale;
-            const centerX = viewBox.x + viewBox.w / 2, centerY = viewBox.y + viewBox.h / 2;
-            viewBox.w *= actualFactor; viewBox.h *= actualFactor;
-            viewBox.x = centerX - viewBox.w / 2; viewBox.y = centerY - viewBox.h / 2;
-            scale = newScale; updateViewBox();
+        const graph = {}; 
+        
+        function getNodeId(point) {
+            return typeof point === 'string' ? point : `${point.x},${point.y}`;
         }
-        document.getElementById('zoom-in').addEventListener('click', () => zoomCentered(1.3));
-        document.getElementById('zoom-out').addEventListener('click', () => zoomCentered(0.7));
-        document.getElementById('zoom-reset').addEventListener('click', () => {
-            viewBox = { x: 0, y: 0, w: 2592, h: 2592 }; scale = 1; updateViewBox(); infoPanel.style.display = 'none';
-            hideLinePopup();
+
+        Object.keys(stationsData).forEach(id => graph[id] = []);
+
+        Object.keys(linesData).forEach(lineId => {
+            let prevNode = null, currentPath = [];
+            linesData[lineId].route.forEach((point) => {
+                const nodeId = getNodeId(point);
+                if (!graph[nodeId]) graph[nodeId] = [];
+                currentPath.push(point);
+
+                if (prevNode) {
+                    const family = getLineFamily(lineId);
+                    
+                    // Расчёт расстояния в БЛОКАХ Minecraft на основе реальных координат станций
+                    let edgeMcLen = 0;
+                    if (stationsData[prevNode] && stationsData[nodeId]) {
+                        const stA = stationsData[prevNode];
+                        const stB = stationsData[nodeId];
+                        edgeMcLen = Math.hypot(stA.mcX - stB.mcX, stA.mcZ - stB.mcZ);
+                    } else {
+                        // Для промежуточных гео-точек
+                        let edgeLenPixel = 0;
+                        for (let i = 0; i < currentPath.length - 1; i++) {
+                            let pA = typeof currentPath[i] === 'string' ? stationsData[currentPath[i]] : currentPath[i];
+                            let pB = typeof currentPath[i+1] === 'string' ? stationsData[currentPath[i+1]] : currentPath[i+1];
+                            edgeLenPixel += Math.hypot(pA.x - pB.x, pA.y - pB.y);
+                        }
+                        edgeMcLen = edgeLenPixel * 2; // Приблизительный коэффициент для точек
+                    }
+
+                    graph[prevNode].push({ node: nodeId, line: family, path: [...currentPath], mcLen: edgeMcLen });
+                    graph[nodeId].push({ node: prevNode, line: family, path: [...currentPath].reverse(), mcLen: edgeMcLen });
+                }
+                prevNode = nodeId; 
+                currentPath = [point];
+            });
         });
 
-        // --- ПЕРЕКЛЮЧЕНИЕ ТЕМЫ ---
-        const THEMES = {
-            light: {
-                gridFill:    '#fafafa',
-                gridMinor:   '#e4e4e4',
-                gridMajor:   '#d2d2d2',
-                labelFill:   '#111',
-                labelShadow: '#fafafa',
-                stationStroke: 'white',
-                transferStroke: '#222',
-                icon: '🌙'
-            },
-            dark: {
-                gridFill:    '#1a1a2e',
-                gridMinor:   '#252540',
-                gridMajor:   '#2e2e50',
-                labelFill:   '#e8e8f0',
-                labelShadow: '#1a1a2e',
-                stationStroke: '#1a1a2e',
-                transferStroke: '#e8e8f0',
-                icon: '☀️'
+        function findRoute(startId, endId) {
+            if (startId === endId) return [];
+            
+            const dist = {}, prev = {};
+            const queue = new Set(Object.keys(graph));
+            
+            for (let id in graph) { 
+                dist[id] = Infinity; 
+                prev[id] = null; 
             }
-        };
+            dist[startId] = 0;
+
+            while (queue.size > 0) {
+                let u = null, minDist = Infinity;
+                for (let id of queue) {
+                    if (dist[id] < minDist) { minDist = dist[id]; u = id; }
+                }
+                if (u === null || u === endId) break;
+                queue.delete(u);
+
+                graph[u].forEach(edge => {
+                    if (!queue.has(edge.node)) return;
+                    
+                    let weight = edge.mcLen;
+                    const isTransfer = prev[u] && prev[u].line !== edge.line;
+                    
+                    if (isTransfer && !stationsData[u]) return;
+                    
+                    if (isTransfer) weight += 500; // Штраф за пересадку
+
+                    if (dist[u] + weight < dist[edge.node]) {
+                        dist[edge.node] = dist[u] + weight;
+                        prev[edge.node] = { node: u, line: edge.line, path: edge.path, mcLen: edge.mcLen };
+                    }
+                });
+            }
+
+            const path = []; let curr = endId;
+            while (prev[curr]) {
+                path.unshift({ from: prev[curr].node, to: curr, line: prev[curr].line, geom: prev[curr].path, mcLen: prev[curr].mcLen });
+                curr = prev[curr].node;
+            }
+            return path.length > 0 ? path : null;
+        }
+
+        // ── РАСЧЁТ ВРЕМЕНИ В ПУТИ ──
+        function calculateTime(pathEdges, legs) {
+            // 1. Дистанция на магистрали (32 блока в секунду)
+            let totalMcBlocks = 0;
+            pathEdges.forEach(edge => totalMcBlocks += (edge.mcLen || 0));
+            const travelTimeSeconds = totalMcBlocks / 32;
+
+            // 2. Остановки / проезд станций (6 секунд на каждую станцию)
+            let totalStationsVisited = 0;
+            legs.forEach(leg => {
+                const validStations = leg.nodes.filter(id => stationsData[id]);
+                totalStationsVisited += new Set(validStations).size;
+            });
+            const stationsTimeSeconds = totalStationsVisited * 6;
+
+            // 3. Задержка на пересадку (15 секунд за пересадку)
+            const transfersCount = legs.length - 1;
+            const transfersTimeSeconds = transfersCount * 15;
+
+            const totalSeconds = Math.round(travelTimeSeconds + stationsTimeSeconds + transfersTimeSeconds);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            if (minutes > 0) {
+                return lang === 'ru' ? `${minutes} мин ${seconds} сек` : `${minutes} m ${seconds} s`;
+            }
+            return lang === 'ru' ? `${seconds} сек` : `${seconds} s`;
+        }
+
+        function drawRoute(pathEdges) {
+            routingLayer.innerHTML = '';
+            document.querySelectorAll('.route-node').forEach(el => el.classList.remove('route-node'));
+            if (!pathEdges || pathEdges.length === 0) return;
+
+            document.getElementById('map-container').classList.add('routing-active');
+
+            const legs = [];
+            let currLeg = { line: pathEdges[0].line, geom: [...pathEdges[0].geom], nodes: [pathEdges[0].from, pathEdges[0].to] };
+            
+            for(let i = 0; i < pathEdges.length; i++) {
+                if (i === 0) continue;
+
+                if (pathEdges[i].line === currLeg.line) {
+                    currLeg.geom.push(...pathEdges[i].geom.slice(1));
+                    currLeg.nodes.push(pathEdges[i].to);
+                } else {
+                    legs.push(currLeg);
+                    currLeg = { line: pathEdges[i].line, geom: [...pathEdges[i].geom], nodes: [pathEdges[i].from, pathEdges[i].to] };
+                }
+            }
+            legs.push(currLeg);
+
+            legs.forEach(leg => {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('class', 'route-path');
+                pathEl.setAttribute('stroke', getLineColor(leg.line));
+                pathEl.setAttribute('d', generateRoundedPath(leg.geom));
+                routingLayer.appendChild(pathEl);
+                
+                leg.nodes.forEach(st => {
+                    if (stationsData[st]) { 
+                        const stNode = document.querySelector(`.station-group[data-id="${st}"]`);
+                        if(stNode) stNode.classList.add('route-node');
+                    }
+                });
+            });
+
+            const transfersCount = legs.length - 1;
+            
+            let trText = '';
+            if (lang === 'ru') {
+                if (transfersCount === 1) trText = '1 пересадка';
+                else if (transfersCount > 1 && transfersCount < 5) trText = transfersCount + ' пересадки';
+                else trText = transfersCount + ' пересадок';
+            } else {
+                trText = transfersCount === 1 ? '1 transfer' : transfersCount + ' transfers';
+            }
+
+            const formattedTime = calculateTime(pathEdges, legs);
+
+            let html = `
+                <div style="margin-bottom: 10px; font-size: 0.88em; color: var(--panel-h2); background: var(--btn-hover-bg); padding: 8px 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                    <span>⏱️ ~${formattedTime}</span>
+                    <span style="opacity: 0.8; font-size: 0.9em;">🔄 ${trText}</span>
+                </div>
+            `;
+
+            legs.forEach((leg, idx) => {
+                const color = getLineColor(leg.line);
+                const lineName = getLineRef(leg.line).name[lang];
+                
+                if (idx > 0) {
+                    html += `<div class="nav-transfer-row"><div class="diagram-dot" style="background:${color}"></div>${i18n[lang].navTransfer} ${lineName}</div>`;
+                }
+                
+                html += `<div class="diagram-track" style="--track-color:${color}">`;
+                
+                const validStations = leg.nodes.filter(id => stationsData[id]);
+                const uniqueStations = [...new Set(validStations)];
+
+                uniqueStations.forEach((stId, nIdx) => {
+                    const isTransfer = (nIdx === 0 && idx > 0) || (nIdx === uniqueStations.length - 1 && idx < legs.length - 1);
+                    html += `<div class="diagram-row"><div class="diagram-node${isTransfer ? ' diagram-node--transfer' : ''}"></div><div class="diagram-station-name">${stationsData[stId].name[lang]}</div></div>`;
+                });
+                html += `</div>`;
+            });
+
+            const resDiv = document.getElementById('nav-results');
+            resDiv.innerHTML = html;
+            resDiv.style.display = 'block';
+
+            const startNode = stationsData[pathEdges[0].from];
+            centerMapOn(startNode.x, startNode.y);
+        }
+
+        function clearRoute() {
+            routingLayer.innerHTML = '';
+            document.getElementById('map-container').classList.remove('routing-active');
+            document.querySelectorAll('.route-node').forEach(el => el.classList.remove('route-node'));
+            document.getElementById('nav-results').style.display = 'none';
+        }
+
+        function populateNavSelects() {
+            const selFrom = document.getElementById('nav-select-from');
+            const selTo = document.getElementById('nav-select-to');
+            const prevFrom = selFrom.value, prevTo = selTo.value;
+            selFrom.innerHTML = ''; selTo.innerHTML = '';
+            
+            const sortedIds = Object.keys(stationsData).sort((a,b) => stationsData[a].name[lang].localeCompare(stationsData[b].name[lang]));
+            sortedIds.forEach(id => {
+                selFrom.add(new Option(stationsData[id].name[lang], id));
+                selTo.add(new Option(stationsData[id].name[lang], id));
+            });
+            if(prevFrom && stationsData[prevFrom]) selFrom.value = prevFrom;
+            if(prevTo && stationsData[prevTo]) selTo.value = prevTo;
+        }
+
+        document.getElementById('nav-toggle').addEventListener('click', () => {
+            const isVis = navPanel.style.display === 'block';
+            navPanel.style.display = isVis ? 'none' : 'block';
+            document.getElementById('nav-toggle').classList.toggle('active-btn', !isVis);
+            if (!isVis) { 
+                infoPanel.style.display = 'none'; 
+                highlightStationLines(null);
+                populateNavSelects(); 
+            }
+        });
+        document.getElementById('close-nav').addEventListener('click', () => {
+            navPanel.style.display = 'none'; document.getElementById('nav-toggle').classList.remove('active-btn');
+        });
+
+        document.getElementById('nav-btn-find').addEventListener('click', () => {
+            const from = document.getElementById('nav-select-from').value;
+            const to = document.getElementById('nav-select-to').value;
+            if (from === to) return alert(i18n[lang].navError);
+            const path = findRoute(from, to);
+            if (path) drawRoute(path); else alert(i18n[lang].navError);
+        });
+
+        document.getElementById('nav-btn-clear').addEventListener('click', clearRoute);
+
+        let currentStationId = null;
+        function drawStations() {
+            stationsLayer.innerHTML = ''; 
+            Object.keys(stationsData).forEach(stationId => {
+                const station = stationsData[stationId];
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'station-group');
+                group.setAttribute('data-id', stationId);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('class', 'station');
+                circle.setAttribute('cx', station.x); circle.setAttribute('cy', station.y);
+                if (station.lines.length > 1) {
+                    circle.setAttribute('r', 11); circle.setAttribute('fill', 'white'); circle.setAttribute('stroke', '#222'); circle.setAttribute('stroke-width', 3);
+                } else {
+                    circle.setAttribute('r', 8); circle.setAttribute('fill', getLineColor(station.lines[0])); circle.setAttribute('stroke-width', 2);
+                }
+
+                const tempT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tempT.setAttribute('class', 'station-label'); tempT.textContent = station.name[lang]; tempT.setAttribute('opacity','0');
+                document.getElementById('viewport-group').appendChild(tempT);
+                const tWidth = tempT.getBBox().width;
+                document.getElementById('viewport-group').removeChild(tempT);
+
+                const dotR = 6, dotGap = 4, dotStep = 16, nLines = station.lines.length, dotsW = nLines * dotStep - dotGap;
+                let dx = 18, dy = 6;
+                if (station.labelPos === 'bottom') { dx = 0; dy = 32; } else if (station.labelPos === 'top') { dx = 0; dy = -20; }
+                else if (station.labelPos === 'left') { dx = -20; dy = 6; } else if (station.labelPos === 'right') { dx = 20; dy = 6; }
+                else if (station.labelPos === 'top-right') { dx = 18; dy = -18; }
+                
+                let dotStartX, textX, textY = station.y + dy;
+                if (station.labelPos === 'top' || station.labelPos === 'bottom') { dotStartX = station.x - (dotsW + 8 + tWidth) / 2; textX = dotStartX + dotsW + 8; }
+                else if (station.labelPos === 'left') { dotStartX = station.x + dx - 4 - (dotsW + 8 + tWidth); textX = dotStartX + dotsW + 8; }
+                else { dotStartX = station.x + dx; textX = dotStartX + dotsW + 8; }
+
+                station.lines.forEach((l, i) => {
+                    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    dot.setAttribute('cx', dotStartX + dotR + i * dotStep); dot.setAttribute('cy', textY - 5);
+                    dot.setAttribute('r', dotR); dot.setAttribute('fill', getLineColor(l));
+                    group.appendChild(dot);
+                });
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('class', 'station-label'); text.textContent = station.name[lang];
+                text.setAttribute('x', textX); text.setAttribute('y', textY);
+                group.appendChild(circle); group.appendChild(text); stationsLayer.appendChild(group);
+
+                group.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (document.getElementById('map-container').classList.contains('routing-active')) return;
+                    currentStationId = stationId;
+                    
+                    highlightStationLines(station);
+
+                    document.getElementById('info-station-name').textContent = station.name[lang];
+                    const ul = document.getElementById('info-line-list'); ul.innerHTML = '';
+                    station.lines.forEach(l => {
+                        ul.innerHTML += `<li class="line-item"><div class="line-color-swatch" style="background:${getLineColor(l)}"></div><span class="line-name">${getLineRef(l).name[lang]}</span></li>`;
+                    });
+                    document.getElementById('info-coords').innerHTML = `<strong>X:</strong> ${station.mcX} &nbsp;&nbsp; <strong>Z:</strong> ${station.mcZ}`;
+                    const mod = document.getElementById('info-mod'); mod.style.display = 'block';
+                    if (station.mod) {
+                        mod.innerHTML = `🔧 <span style="opacity:0.7;font-weight:400">${i18n[lang].modReqTitle}</span> <span style="color:#c0392b">${i18n[lang].req}</span>`;
+                        mod.style.background = 'rgba(192,57,43,0.1)'; mod.style.border = '1px solid rgba(192,57,43,0.25)';
+                    } else {
+                        mod.innerHTML = `✅ <span style="opacity:0.7;font-weight:400">${i18n[lang].modReqTitle}</span> <span style="color:#27ae60">${i18n[lang].notReq}</span>`;
+                        mod.style.background = 'rgba(39,174,96,0.1)'; mod.style.border = '1px solid rgba(39,174,96,0.25)';
+                    }
+                    mod.style.color = isDark ? '#ddd' : '#333';
+                    infoPanel.style.display = 'block'; navPanel.style.display = 'none'; document.getElementById('nav-toggle').classList.remove('active-btn');
+                });
+            });
+            applyTheme(isDark);
+        }
+
+        document.getElementById('close-info').addEventListener('click', () => {
+            infoPanel.style.display = 'none';
+            highlightStationLines(null);
+        });
+
+        document.getElementById('lang-toggle').addEventListener('click', () => {
+            lang = lang === 'ru' ? 'en' : 'ru';
+            document.getElementById('y-height-label').textContent = i18n[lang].yHeight;
+            document.getElementById('station-search-input').placeholder = i18n[lang].searchPlaceholder;
+            document.querySelector('.i18n-cbTitle').textContent = i18n[lang].cbTitle;
+            document.getElementById('cb-btn-none').textContent = i18n[lang].cbNone;
+            document.getElementById('cb-btn-prota').textContent = i18n[lang].cbProta;
+            document.getElementById('cb-btn-deuta').textContent = i18n[lang].cbDeuta;
+            document.getElementById('cb-btn-trita').textContent = i18n[lang].cbTrita;
+            document.querySelector('.i18n-navTitle').textContent = i18n[lang].navTitle;
+            document.querySelector('.i18n-navFrom').textContent = i18n[lang].navFrom;
+            document.querySelector('.i18n-navTo').textContent = i18n[lang].navTo;
+            document.getElementById('nav-btn-find').textContent = i18n[lang].navBtn;
+            document.getElementById('nav-btn-clear').textContent = i18n[lang].navClear;
+            populateNavSelects(); drawStations();
+            if (document.getElementById('nav-results').style.display === 'block') document.getElementById('nav-btn-find').click();
+            if (document.getElementById('line-diagram-overlay').style.display === 'flex' && currentLineForDiagram) openLineDiagram(currentLineForDiagram);
+        });
+
+        const svg = document.getElementById('metro-svg'), container = document.getElementById('map-container');
+        let viewBox = { x: 0, y: 0, w: 2592, h: 2592 }, isPanning = false, startP = {x:0, y:0}, scale = 1;
+        
+        function updateVB() { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`); }
+        function applyZoom(newScale, cx, cy) {
+            const rect = container.getBoundingClientRect();
+            const mx = viewBox.x + (cx - rect.left)*(viewBox.w/container.clientWidth), my = viewBox.y + (cy - rect.top)*(viewBox.h/container.clientHeight);
+            const zF = scale/newScale; viewBox.w *= zF; viewBox.h *= zF;
+            viewBox.x = mx - (cx - rect.left)*(viewBox.w/container.clientWidth); viewBox.y = my - (cy - rect.top)*(viewBox.h/container.clientHeight);
+            scale = newScale; updateVB();
+        }
+        function centerMapOn(x, y) {
+            viewBox.x = x - viewBox.w/2; viewBox.y = y - viewBox.h/2; updateVB();
+        }
+
+        container.addEventListener('mousedown', e => { if (!e.target.closest('.station-group') && !e.target.closest('.control-btn')) { isPanning = true; startP = {x: e.clientX, y: e.clientY}; container.classList.add('grabbing'); }});
+        window.addEventListener('mousemove', e => { if(isPanning){ viewBox.x -= (e.clientX - startP.x)*(viewBox.w/container.clientWidth); viewBox.y -= (e.clientY - startP.y)*(viewBox.h/container.clientHeight); updateVB(); startP = {x: e.clientX, y: e.clientY}; }});
+        window.addEventListener('mouseup', () => { isPanning = false; container.classList.remove('grabbing'); });
+        container.addEventListener('wheel', e => { e.preventDefault(); applyZoom(Math.max(0.3, Math.min(3, scale - e.deltaY*0.001)), e.clientX, e.clientY); }, {passive: false});
+
+        let initPinchDist = null, initScale = 1;
+        container.addEventListener('touchstart', e => {
+            if(e.touches.length === 1 && !e.target.closest('.station-group')) { isPanning = true; startP = {x: e.touches[0].clientX, y: e.touches[0].clientY}; }
+            else if(e.touches.length === 2) { isPanning = false; initPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); initScale = scale; }
+        }, {passive: false});
+        container.addEventListener('touchmove', e => {
+            if(isPanning && e.touches.length === 1) { e.preventDefault(); viewBox.x -= (e.touches[0].clientX - startP.x)*(viewBox.w/container.clientWidth); viewBox.y -= (e.touches[0].clientY - startP.y)*(viewBox.h/container.clientHeight); updateVB(); startP = {x: e.touches[0].clientX, y: e.touches[0].clientY}; }
+            else if(e.touches.length === 2 && initPinchDist) { e.preventDefault(); const curDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); applyZoom(Math.max(0.3, Math.min(3, initScale * (curDist/initPinchDist))), (e.touches[0].clientX+e.touches[1].clientX)/2, (e.touches[0].clientY+e.touches[1].clientY)/2); }
+        }, {passive: false});
+        container.addEventListener('touchend', () => { isPanning = false; initPinchDist = null; });
+
+        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(Math.max(0.3, Math.min(3, scale*1.3)), container.clientWidth/2, container.clientHeight/2));
+        document.getElementById('zoom-out').addEventListener('click', () => applyZoom(Math.max(0.3, Math.min(3, scale*0.7)), container.clientWidth/2, container.clientHeight/2));
+        document.getElementById('zoom-reset').addEventListener('click', () => { viewBox = {x: 0, y: 0, w: 2592, h: 2592}; scale = 1; updateVB(); });
+
+        document.getElementById('colorblind-toggle').addEventListener('click', e => { e.stopPropagation(); const m = document.getElementById('cb-menu'); m.style.display = m.style.display==='block'?'none':'block'; });
+        
+        document.addEventListener('click', e => { 
+            if(!e.target.closest('#cb-menu') && e.target.id!=='colorblind-toggle') {
+                document.getElementById('cb-menu').style.display = 'none'; 
+            }
+            if(!e.target.closest('#line-popup') && !e.target.closest('.metro-line')) {
+                document.getElementById('line-popup').style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.cb-btn').forEach(btn => btn.addEventListener('click', e => {
+            document.querySelectorAll('.cb-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active');
+            svg.style.filter = e.currentTarget.dataset.filter === 'none' ? 'none' : e.currentTarget.dataset.filter;
+        }));
 
         let isDark = false;
-
         function applyTheme(dark) {
-            const t = dark ? THEMES.dark : THEMES.light;
-
-            // body class
             document.body.classList.toggle('dark', dark);
-
-            // SVG grid colours
-            document.getElementById('gm-fill').setAttribute('fill', t.gridFill);
-            document.getElementById('gm-stroke').setAttribute('stroke', t.gridMinor);
-            document.getElementById('gM-stroke').setAttribute('stroke', t.gridMajor);
-
-            // station labels & stroke colours
-            document.querySelectorAll('.station-label').forEach(el => {
-                el.setAttribute('fill', t.labelFill);
-                const s = t.labelShadow;
-                el.style.textShadow = `2px 2px 0 ${s}, -2px -2px 0 ${s}, 2px -2px 0 ${s}, -2px 2px 0 ${s}, 0 2px 0 ${s}, 0 -2px 0 ${s}, 2px 0 0 ${s}, -2px 0 0 ${s}, 0 0 4px ${s}`;
-            });
-
-            // station circle strokes
+            document.getElementById('gm-fill').setAttribute('fill', dark ? '#1a1a2e' : '#fafafa');
+            document.getElementById('gm-stroke').setAttribute('stroke', dark ? '#252540' : '#e4e4e4');
+            document.getElementById('gM-stroke').setAttribute('stroke', dark ? '#2e2e50' : '#d2d2d2');
+            const sh = dark ? '#1a1a2e' : '#fafafa';
+            document.querySelectorAll('.station-label').forEach(el => { el.setAttribute('fill', dark?'#e8e8f0':'#111'); el.style.textShadow = `2px 2px 0 ${sh}, -2px -2px 0 ${sh}, 2px -2px 0 ${sh}, -2px 2px 0 ${sh}, 0 2px 0 ${sh}, 0 -2px 0 ${sh}, 2px 0 0 ${sh}, -2px 0 0 ${sh}, 0 0 4px ${sh}`; });
             document.querySelectorAll('.station').forEach(el => {
-                const isTransfer = el.getAttribute('stroke') !== 'white' && el.getAttribute('stroke') !== '#1a1a2e'
-                    ? false
-                    : el.getAttribute('fill') === 'white' || el.getAttribute('fill') === 'transparent' || el.getAttribute('fill') === '';
-                if (el.getAttribute('fill') === 'white' || el.getAttribute('fill') === '#1a1a2e' || el.getAttribute('fill') === '') {
-                    // пересадочная
-                    el.setAttribute('fill', dark ? '#1a1a2e' : 'white');
-                    el.setAttribute('stroke', t.transferStroke);
-                } else {
-                    el.setAttribute('stroke', t.stationStroke);
-                }
+                if(el.getAttribute('fill')==='white' || el.getAttribute('fill')==='#1a1a2e') { el.setAttribute('fill', dark?'#1a1a2e':'white'); el.setAttribute('stroke', dark?'#e8e8f0':'#222'); }
+                else el.setAttribute('stroke', dark?'#1a1a2e':'white');
+            });
+            document.getElementById('theme-toggle').textContent = dark ? '☀️' : '🌙';
+            const mod = document.getElementById('info-mod'); if(mod) mod.style.color = dark ? '#ddd' : '#333';
+        }
+        document.getElementById('theme-toggle').addEventListener('click', () => { isDark = !isDark; applyTheme(isDark); });
+
+        // ── ПОИСК СТАНЦИЙ ──
+        const searchInput = document.getElementById('station-search-input');
+        const searchResults = document.getElementById('search-results-list');
+
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toLowerCase();
+            searchResults.innerHTML = '';
+            
+            if (!val) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            const matches = Object.keys(stationsData).filter(id => 
+                stationsData[id].name[lang].toLowerCase().includes(val)
+            );
+
+            if (matches.length === 0) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            matches.forEach(id => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 10px 14px; cursor: pointer; color: var(--panel-h2); font-weight: 600; font-size: 0.9em; border-bottom: 1px solid var(--panel-border); transition: background 0.2s;';
+                item.textContent = stationsData[id].name[lang];
+                
+                item.addEventListener('mouseenter', () => item.style.background = 'var(--btn-hover-bg)');
+                item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+
+                item.addEventListener('click', () => {
+                    const st = stationsData[id];
+                    centerMapOn(st.x, st.y);
+                    
+                    const stGroup = document.querySelector(`.station-group[data-id="${id}"]`);
+                    if (stGroup) stGroup.dispatchEvent(new Event('click'));
+                    
+                    searchResults.style.display = 'none';
+                    searchInput.value = '';
+                });
+                
+                searchResults.appendChild(item);
             });
 
-            document.getElementById('theme-toggle').textContent = t.icon;
-
-            // Обновляем цвет текста блока модернизации если он виден
-            const modDiv = document.getElementById('info-mod');
-            modDiv.style.color = dark ? '#ddd' : '#333';
-        }
-
-        // Первичный рендер меток (textShadow через JS при старте)
-        applyTheme(false);
-
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            isDark = !isDark;
-            applyTheme(isDark);
+            searchResults.style.display = 'block';
         });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#search-container')) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        drawStations(); populateNavSelects();
     </script>
 </body>
 </html>
