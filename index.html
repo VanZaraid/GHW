@@ -10,21 +10,18 @@
             margin: 0;
             padding: 0;
         }
-        
         /* CSS-переменные для строгого переключения двух цветов */
         :root {
             --bg-color: #000000;
             --primary-color: #8fd82f;
             --text-hover: #000000;
         }
-
         /* Класс для светлой темы: основной цвет белый, второй — черный */
         body.light-theme {
             --bg-color: #ffffff;
             --primary-color: #000000;
             --text-hover: #ffffff;
         }
-
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
@@ -34,7 +31,6 @@
             overflow-y: auto;
             transition: background-color 0.25s ease;
         }
-
         /* Контейнер для кнопок управления в верхнем правом углу */
         .controls-container {
             position: absolute;
@@ -45,7 +41,6 @@
             gap: 12px;
             z-index: 10;
         }
-
         /* Общие стили для круглых кнопок управления */
         .control-btn {
             background: none;
@@ -76,7 +71,6 @@
         .control-btn:hover svg {
             fill: var(--text-hover);
         }
-
         /* Верхняя зона для центрирования логотипа между краем и Discord */
         .top-space {
             position: absolute;
@@ -88,14 +82,12 @@
             justify-content: center;
             align-items: center;
         }
-
         /* Стили для логотипа GHW */
         .logo {
             width: 160px;
             height: auto;
             display: block;
         }
-
         /* Основной блок с кнопками и Discord зафиксирован строго по центру экрана */
         .center-block {
             position: absolute;
@@ -110,7 +102,6 @@
             max-width: 320px;
             padding: 20px;
         }
-
         /* Стили для иконки Discord */
         .discord-link {
             display: inline-flex;
@@ -128,7 +119,6 @@
         .discord-link:hover {
             transform: scale(1.05);
         }
-
         /* Контейнер для кнопок */
         .button-container {
             display: flex;
@@ -136,7 +126,6 @@
             gap: 16px;
             width: 100%;
         }
-
         /* Кнопки карт */
         .btn-map {
             display: block;
@@ -151,30 +140,25 @@
             border-radius: 8px;
             transition: all 0.2s ease;
         }
-
         /* Эффект инверсии при наведении */
         .btn-map:hover {
             color: var(--text-hover);
             background-color: var(--primary-color);
             transform: translateY(-2px);
         }
-        
         .btn-map:active {
             transform: translateY(0);
         }
-
         /* Элементы локализации */
         [data-lang="en"] {
             display: none;
         }
-
         body.lang-en [data-lang="ru"] {
             display: none;
         }
         body.lang-en [data-lang="en"] {
             display: block;
         }
-
         /* --- АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ --- */
         @media (max-width: 600px), (max-height: 650px) {
             body {
@@ -184,31 +168,25 @@
                 flex-direction: column;
                 justify-content: flex-start;
                 align-items: center;
-                padding: 80px 20px 40px 20px; /* Отступы, чтобы контент не упирался в края */
+                padding: 80px 20px 40px 20px;
                 overflow-y: auto;
             }
-
             .controls-container {
                 top: 15px;
                 right: 15px;
             }
-
-            /* Переводим позиционирование в нормальный поток, чтобы элементы не накладывались */
             .top-space {
                 position: static;
                 margin-bottom: 30px;
             }
-
             .logo {
-                width: 130px; /* Слегка уменьшаем логотип на мобильных */
+                width: 130px;
             }
-
             .center-block {
                 position: static;
                 transform: none;
                 padding: 0;
             }
-            
             .btn-map {
                 padding: 14px 20px;
                 font-size: 16px;
@@ -217,7 +195,6 @@
     </style>
 </head>
 <body>
-
     <!-- Контейнер для кнопок управления в углу -->
     <div class="controls-container">
         <!-- Кнопка смены языка (слева) -->
@@ -225,11 +202,10 @@
             <span data-lang="ru">EN</span>
             <span data-lang="en">RU</span>
         </button>
-
-        <!-- Кнопка смены тему (справа) -->
+        <!-- Кнопка смены темы (справа) -->
         <button class="control-btn" id="themeToggle" aria-label="Сменить тему">
             <svg viewBox="0 0 24 24">
-                <path d="M12 3c.132 0 .263 0 .393.007a7.5 7.5 0 0 0 7.92 12.446A9 9 0 1 1 12 3zm0-2C5.925 1 1 5.925 1 12s4.925 11 11 11 11-4.925 11-11a10.9 10.9 0 0 0-1-4.636 9.5 9.5 0 0 1-10.364-10.364A10.94 10.94 0 0 0 12 1z"/>
+                <path d="M21.75 16.242A9.953 9.953 0 0 1 12 22C6.477 22 2 17.523 2 12c0-4.048 2.408-7.535 5.858-9.143a.75.75 0 0 1 1.006.868A8.003 8.003 0 0 0 19.875 15.24a.75.75 0 0 1 .875 1.002z"/>
             </svg>
         </button>
     </div>
@@ -267,7 +243,7 @@
         const langToggle = document.getElementById('langToggle');
         const body = document.body;
         const logo = document.getElementById('ghwLogo');
-
+        
         const darkLogoSrc = "logo_green.png";
         const lightLogoSrc = "logo_black.png";
 
@@ -299,6 +275,5 @@
             localStorage.setItem('lang', isEn ? 'en' : 'ru');
         });
     </script>
-    
 </body>
 </html>
