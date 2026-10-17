@@ -10,13 +10,11 @@
             margin: 0;
             padding: 0;
         }
-        /* CSS-переменные для строгого переключения двух цветов */
         :root {
             --bg-color: #000000;
             --primary-color: #8fd82f;
             --text-hover: #000000;
         }
-        /* Класс для светлой темы: основной цвет белый, второй — черный */
         body.light-theme {
             --bg-color: #ffffff;
             --primary-color: #000000;
@@ -31,7 +29,6 @@
             overflow-y: auto;
             transition: background-color 0.25s ease;
         }
-        /* Контейнер для кнопок управления в верхнем правом углу */
         .controls-container {
             position: absolute;
             top: 20px;
@@ -41,7 +38,6 @@
             gap: 12px;
             z-index: 10;
         }
-        /* Общие стили для круглых кнопок управления */
         .control-btn {
             background: none;
             border: 2px solid var(--primary-color);
@@ -71,7 +67,6 @@
         .control-btn:hover svg {
             fill: var(--text-hover);
         }
-        /* Верхняя зона для центрирования логотипа между краем и Discord */
         .top-space {
             position: absolute;
             top: 0;
@@ -82,13 +77,11 @@
             justify-content: center;
             align-items: center;
         }
-        /* Стили для логотипа GHW */
         .logo {
             width: 160px;
             height: auto;
             display: block;
         }
-        /* Основной блок с кнопками и Discord зафиксирован строго по центру экрана */
         .center-block {
             position: absolute;
             top: 50%;
@@ -102,7 +95,6 @@
             max-width: 320px;
             padding: 20px;
         }
-        /* Стили для иконки Discord */
         .discord-link {
             display: inline-flex;
             align-items: center;
@@ -119,14 +111,12 @@
         .discord-link:hover {
             transform: scale(1.05);
         }
-        /* Контейнер для кнопок */
         .button-container {
             display: flex;
             flex-direction: column;
             gap: 16px;
             width: 100%;
         }
-        /* Кнопки карт */
         .btn-map {
             display: block;
             text-decoration: none;
@@ -140,7 +130,6 @@
             border-radius: 8px;
             transition: all 0.2s ease;
         }
-        /* Эффект инверсии при наведении */
         .btn-map:hover {
             color: var(--text-hover);
             background-color: var(--primary-color);
@@ -149,7 +138,6 @@
         .btn-map:active {
             transform: translateY(0);
         }
-        /* Элементы локализации */
         [data-lang="en"] {
             display: none;
         }
@@ -159,7 +147,6 @@
         body.lang-en [data-lang="en"] {
             display: block;
         }
-        /* --- АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ --- */
         @media (max-width: 600px), (max-height: 650px) {
             body {
                 height: auto;
@@ -195,14 +182,11 @@
     </style>
 </head>
 <body>
-    <!-- Контейнер для кнопок управления в углу -->
     <div class="controls-container">
-        <!-- Кнопка смены языка (слева) -->
         <button class="control-btn" id="langToggle" aria-label="Сменить язык / Change language">
             <span data-lang="ru">EN</span>
             <span data-lang="en">RU</span>
         </button>
-        <!-- Кнопка смены темы (справа) -->
         <button class="control-btn" id="themeToggle" aria-label="Сменить тему">
             <svg viewBox="0 0 24 24">
                 <path d="M21.75 16.242A9.953 9.953 0 0 1 12 22C6.477 22 2 17.523 2 12c0-4.048 2.408-7.535 5.858-9.143a.75.75 0 0 1 1.006.868A8.003 8.003 0 0 0 19.875 15.24a.75.75 0 0 1 .875 1.002z"/>
@@ -210,21 +194,17 @@
         </button>
     </div>
 
-    <!-- Зона для логотипа -->
     <div class="top-space">
         <img src="logo_green.png" alt="GHW Logo" class="logo" id="ghwLogo">
     </div>
 
-    <!-- Основной блок -->
     <div class="center-block">
-        <!-- Иконка Discord -->
         <a href="https://discord.gg/cSh87GS5xq" class="discord-link" target="_blank" aria-label="Discord">
             <svg viewBox="0 0 127.14 96.36">
                 <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.18,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a74.37,74.37,0,0,0,6.72-10.93,68.6,68.6,0,0,1-10.64-5.12c.91-.67,1.81-1.37,2.65-2.1a75.22,75.22,0,0,0,72.76,0c.84.73,1.74,1.43,2.65,2.1a68.86,68.86,0,0,1-10.64,5.12,74.74,74.74,0,0,0,6.72,10.93,105.73,105.73,0,0,0,31.05-18.83C130,49.67,123.83,26.83,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.87,46,53.87,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.11,46,96.11,53,91,65.69,84.69,65.69Z"/>
             </svg>
         </a>
 
-        <!-- Блок с кнопками карт -->
         <div class="button-container">
             <a href="http://mc.ghw.su:8127" class="btn-map" target="_blank">
                 <span data-lang="ru">GHW Карта</span>
@@ -237,7 +217,6 @@
         </div>
     </div>
 
-    <!-- Скрипт переключения темы и языка -->
     <script>
         const themeToggle = document.getElementById('themeToggle');
         const langToggle = document.getElementById('langToggle');
@@ -251,7 +230,6 @@
             logo.src = isLight ? lightLogoSrc : darkLogoSrc;
         }
 
-        // Тема
         if (localStorage.getItem('theme') === 'light') {
             body.classList.add('light-theme');
             updateLogo(true);
@@ -265,7 +243,6 @@
             localStorage.setItem('theme', isLight ? 'light' : 'dark');
         });
 
-        // Язык
         if (localStorage.getItem('lang') === 'en') {
             body.classList.add('lang-en');
         }
