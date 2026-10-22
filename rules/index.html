@@ -200,7 +200,7 @@
     </div>
 
     <main class="container">
-        <a href="/"><img src="logo_green.png" alt="GHW Logo" class="logo" id="ghwLogo"></a>
+        <a href="/"><img src="logo_dark.png" alt="logo" class="logo" id="logo"></a>
 
 <div data-lang="ru">
 <h1>Правила GHW</h1>
@@ -257,10 +257,10 @@
         const themeToggle = document.getElementById('themeToggle');
         const langToggle = document.getElementById('langToggle');
         const body = document.body;
-        const logo = document.getElementById('ghwLogo');
+        const logo = document.getElementById('logo');
 
         function updateLogo(isLight) {
-            logo.src = isLight ? "logo_black.png" : "logo_green.png";
+            logo.src = isLight ? "logo_light.png" : "logo_dark.png";
         }
 
         function updateLang(isEn) {
