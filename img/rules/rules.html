@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHW — Правила</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        :root {
+            --bg-color: #000000;
+            --primary-color: #8fd82f;
+            --text-hover: #000000;
+            --text-color: #e6e6e6;
+            --muted-color: #9a9a9a;
+        }
+        body.light-theme {
+            --bg-color: #ffffff;
+            --primary-color: #000000;
+            --text-hover: #ffffff;
+            --text-color: #1a1a1a;
+            --muted-color: #666666;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            line-height: 1.6;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        .controls-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+        }
+        .controls-left {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+        .control-btn {
+            background: none;
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            color: var(--primary-color);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .control-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--primary-color);
+            transition: fill 0.2s ease;
+        }
+        .control-btn:hover {
+            background-color: var(--primary-color);
+            color: var(--text-hover);
+        }
+        .control-btn:hover svg {
+            fill: var(--text-hover);
+        }
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 90px 20px 60px 20px;
+        }
+        .logo {
+            display: block;
+            width: 110px;
+            height: auto;
+            margin: 0 auto 30px auto;
+        }
+        h1 {
+            color: var(--primary-color);
+            font-size: 34px;
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        h2 {
+            color: var(--primary-color);
+            font-size: 22px;
+            margin: 36px 0 12px 0;
+        }
+        .rule {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .rule-num {
+            flex: 0 0 auto;
+            color: var(--primary-color);
+            font-weight: 700;
+            min-width: 38px;
+        }
+        ul {
+            list-style: none;
+            margin: 6px 0 6px 50px;
+        }
+        ul li {
+            position: relative;
+            padding-left: 18px;
+            margin-bottom: 4px;
+        }
+        ul li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.7em;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+        }
+        .mod-list {
+            margin: 10px 0 14px 0;
+            columns: 2;
+            column-gap: 30px;
+        }
+        .mod-list li {
+            break-inside: avoid;
+        }
+        .note {
+            color: var(--muted-color);
+            margin: 10px 0 16px 0;
+        }
+        .mention {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        [data-lang="en"] {
+            display: none;
+        }
+        body.lang-en [data-lang="ru"] {
+            display: none;
+        }
+        body.lang-en [data-lang="en"] {
+            display: block;
+        }
+        .control-btn [data-lang] {
+            display: none;
+        }
+        body:not(.lang-en) .control-btn [data-lang="ru"],
+        body.lang-en .control-btn [data-lang="en"] {
+            display: inline;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding-top: 80px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            ul {
+                margin-left: 20px;
+            }
+            .mod-list {
+                columns: 1;
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls-left">
+        <a href="/" class="control-btn" aria-label="На главную / Home">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z"/>
+            </svg>
+        </a>
+    </div>
+
+    <div class="controls-container">
+        <button class="control-btn" id="langToggle" aria-label="Сменить язык / Change language">
+            <span data-lang="ru">EN</span>
+            <span data-lang="en">RU</span>
+        </button>
+        <button class="control-btn" id="themeToggle" aria-label="Сменить тему">
+            <svg viewBox="0 0 24 24">
+                <path d="M21.75 16.242A9.953 9.953 0 0 1 12 22C6.477 22 2 17.523 2 12c0-4.048 2.408-7.535 5.858-9.143a.75.75 0 0 1 1.006.868A8.003 8.003 0 0 0 19.875 15.24a.75.75 0 0 1 .875 1.002z"/>
+            </svg>
+        </button>
+    </div>
+
+    <main class="container">
+        <a href="/"><img src="logo_green.png" alt="GHW Logo" class="logo" id="ghwLogo"></a>
+
+<div data-lang="ru">
+<h1>Правила GHW</h1>
+<h2>1. Общее</h2>
+<div class="rule"><span class="rule-num">1.1.</span><p>Играть можно только с модификациями, которые перечислены в <a href="#whitelist-ru" class="mention">белом списке</a>. По всем вопросам о легальности интересующей модификации, обращайтесь к <span class="mention">@GHW Administrator</span>.</p></div>
+<div class="rule"><span class="rule-num">1.2.</span><p>Запрещено:</p></div>
+<ul><li>Продажа/покупка товаров/услуг за неигровой контент (за денежные средства и прочее)</li><li>Негативные действия, направленные на человека/группу лиц по признаку принадлежности к какой-либо социальной группе</li><li>Доксинг (поиск и/или публикация персональной и/или конфиденциальной информации о человеке без его согласия)</li></ul>
+<h2>2. Общение</h2>
+<div class="rule"><span class="rule-num">2.1.</span><p>Запрещено:</p></div>
+<ul><li>Призывы к нарушению правил сервера</li><li>Токсичное поведение, спам, флуд</li><li>Раздражающая реклама сторонних ресурсов</li></ul>
+<h2>3. Игровой процесс</h2>
+<div class="rule"><span class="rule-num">3.1.</span><p>Перед строительством в радиусе 1000 блоков от нулевых координат убедитесь, что Ваша постройка достойная.</p></div>
+<div class="rule"><span class="rule-num">3.2.</span><p>Находясь на чужой территории, соблюдайте правила её владельца.</p></div>
+<div class="rule"><span class="rule-num">3.3.</span><p>Можно строить на любой незанятой территории; чтобы занять территорию, нужно пометить её табличками или любым иным достаточно заметным и однозначным способом. По умолчанию, территория, занятая игроком, распространяется на всю высоту мира — от -64 до 320.</p></div>
+<div class="rule"><span class="rule-num">3.4.</span><p>Возмещение предметов и другого ущерба производится только в случае убийства, воровства или гриферства.</p></div>
+<div class="rule"><span class="rule-num">3.5.</span><p>На сервере разрешено использование автокликера, только если он не меняет и не способствует изменению положения мыши, игрока и энтити, без функционала автофокуса на игрока, энтити и блоки, с одинаковой задержкой между каждым кликом.</p></div>
+<div class="rule"><span class="rule-num">3.6.</span><p>Запрещено:</p></div>
+<ul><li>Гриферство, воровство и читерство</li><li>Дюп (исключения: TNT-машины и яйцо дракона)</li><li>PvP без обоюдного согласия и создание ловушек с целью лишить игрока ресурсов</li></ul>
+<h2 id="whitelist-ru">Белый список модификаций</h2>
+<ul class="mod-list"><li>Badlion Client</li><li>BetterF3</li><li>Blur</li><li>Bobby</li><li>Chat Heads</li><li>CraftPresence</li><li>Essential</li><li>Fabric API</li><li>Held Item Info</li><li>Iris Shaders</li><li>Item Scroller</li><li>JourneyMap</li><li>Just Enough Items (JEI)</li><li>LambDynamicLights</li><li>Light Level Overlay</li><li>Litematica (Easy Place Mode запрещён)</li><li>Lithium</li><li>Logical Zoom</li><li>MiniHUD</li><li>ModMenu</li><li>Not Enough Crashes</li><li>OffersHUD</li><li>OptiFabric</li><li>OptiFine</li><li>Phosphor</li><li>Presence Footsteps</li><li>Replay Mod</li><li>Shulker Box Tooltip</li><li>Smooth Boot</li><li>Sodium</li><li>Stendhal</li><li>Twitch Chat Bridge</li><li>VoxelMap</li><li>Xaero's Minimap</li><li>Xaero's World Map</li></ul>
+<p class="note">Если вы не нашли интересующую модификацию, обратитесь к <span class="mention">@GHW Administrator</span>.</p>
+<h2>Чёрный список модификаций</h2>
+<p class="note">Помимо перечисленных ниже модификаций, к использованию запрещены все копии, клоны и форки перечисленных ниже модов, выполняющих те же функции, вне зависимости от изменения названия и изменений в коде.</p>
+<ul class="mod-list"><li>Автототем-модификации (любого вида)</li><li>Модификации, выполняющие действия за игрока (ИИ, принтер и так далее)</li><li>Модификации, изменяющие стандартное визуальное поведение Minecraft под водой и лавой</li><li>Чит-модификации (любого вида)</li><li>AFKPeace</li><li>Aristois</li><li>Autofish</li><li>AutoSwitch</li><li>Baritone</li><li>Bedrock Miner</li><li>Better PVP (все версии)</li><li>BetterClicker</li><li>Bridging Mod</li><li>ClientCommands</li><li>CMDCam</li><li>Elytra Utilities</li><li>FindMe</li><li>Freecam</li><li>Impact</li><li>Inertia</li><li>Inventory Plus</li><li>Inventory Tabs</li><li>InvMove</li><li>ItemSwapper</li><li>Jello</li><li>LavaClearView</li><li>Librarian Trade Finder</li><li>MidnightControlsExtra</li><li>MultiConnect</li><li>NoFog (используйте Sodium Extra или OptiFine)</li><li>SeedCracker (а также другие моды и программы, выполняющие функции этого мода)</li><li>Sigma</li><li>Trajectory Preview</li><li>Tweakeroo</li><li>Wall-Jump</li><li>Wurst</li><li>Xray-модификации</li></ul>
+</div>
+
+<div data-lang="en">
+<h1>GHW Rules</h1>
+<h2>1. General</h2>
+<div class="rule"><span class="rule-num">1.1.</span><p>You may only play with the mods listed in the <a href="#whitelist-en" class="mention">whitelist</a>. For any questions about whether a particular mod is allowed, contact <span class="mention">@GHW Administrator</span>.</p></div>
+<div class="rule"><span class="rule-num">1.2.</span><p>Prohibited:</p></div>
+<ul><li>Selling/buying goods/services for non-game content (for money, etc.)</li><li>Negative actions aimed at a person/group of people based on their membership in any social group</li><li>Doxxing (searching for and/or publishing personal and/or confidential information about a person without their consent)</li></ul>
+<h2>2. Communication</h2>
+<div class="rule"><span class="rule-num">2.1.</span><p>Prohibited:</p></div>
+<ul><li>Calls to break the server rules</li><li>Toxic behavior, spam, flooding</li><li>Annoying advertising of third-party resources</li></ul>
+<h2>3. Gameplay</h2>
+<div class="rule"><span class="rule-num">3.1.</span><p>Before building within 1000 blocks of the zero coordinates, make sure your build is worthy.</p></div>
+<div class="rule"><span class="rule-num">3.2.</span><p>When on someone else's territory, follow its owner's rules.</p></div>
+<div class="rule"><span class="rule-num">3.3.</span><p>You may build on any unclaimed territory; to claim territory, mark it with signs or any other sufficiently visible and unambiguous method. By default, territory claimed by a player extends over the entire height of the world — from -64 to 320.</p></div>
+<div class="rule"><span class="rule-num">3.4.</span><p>Compensation for items and other damage is provided only in cases of killing, theft, or griefing.</p></div>
+<div class="rule"><span class="rule-num">3.5.</span><p>Autoclickers are allowed on the server only if they do not change or contribute to changing the position of the mouse, player, or entities, have no auto-focus on players, entities, or blocks, and use the same delay between every click.</p></div>
+<div class="rule"><span class="rule-num">3.6.</span><p>Prohibited:</p></div>
+<ul><li>Griefing, theft and cheating</li><li>Duping (exceptions: TNT machines and the dragon egg)</li><li>PvP without mutual consent and building traps intended to deprive a player of resources</li></ul>
+<h2 id="whitelist-en">Mod Whitelist</h2>
+<ul class="mod-list"><li>Badlion Client</li><li>BetterF3</li><li>Blur</li><li>Bobby</li><li>Chat Heads</li><li>CraftPresence</li><li>Essential</li><li>Fabric API</li><li>Held Item Info</li><li>Iris Shaders</li><li>Item Scroller</li><li>JourneyMap</li><li>Just Enough Items (JEI)</li><li>LambDynamicLights</li><li>Light Level Overlay</li><li>Litematica (Easy Place Mode is prohibited)</li><li>Lithium</li><li>Logical Zoom</li><li>MiniHUD</li><li>ModMenu</li><li>Not Enough Crashes</li><li>OffersHUD</li><li>OptiFabric</li><li>OptiFine</li><li>Phosphor</li><li>Presence Footsteps</li><li>Replay Mod</li><li>Shulker Box Tooltip</li><li>Smooth Boot</li><li>Sodium</li><li>Stendhal</li><li>Twitch Chat Bridge</li><li>VoxelMap</li><li>Xaero's Minimap</li><li>Xaero's World Map</li></ul>
+<p class="note">If you did not find the mod you are interested in, contact <span class="mention">@GHW Administrator</span>.</p>
+<h2>Mod Blacklist</h2>
+<p class="note">In addition to the mods listed below, all copies, clones and forks of the mods listed below that perform the same functions are prohibited, regardless of renamed titles or code changes.</p>
+<ul class="mod-list"><li>Auto-totem mods (of any kind)</li><li>Mods that perform actions for the player (AI, printers, etc.)</li><li>Mods that change Minecraft's standard visual behavior underwater and in lava</li><li>Cheat mods (of any kind)</li><li>AFKPeace</li><li>Aristois</li><li>Autofish</li><li>AutoSwitch</li><li>Baritone</li><li>Bedrock Miner</li><li>Better PVP (all versions)</li><li>BetterClicker</li><li>Bridging Mod</li><li>ClientCommands</li><li>CMDCam</li><li>Elytra Utilities</li><li>FindMe</li><li>Freecam</li><li>Impact</li><li>Inertia</li><li>Inventory Plus</li><li>Inventory Tabs</li><li>InvMove</li><li>ItemSwapper</li><li>Jello</li><li>LavaClearView</li><li>Librarian Trade Finder</li><li>MidnightControlsExtra</li><li>MultiConnect</li><li>NoFog (use Sodium Extra or OptiFine)</li><li>SeedCracker (and other mods and programs that perform this mod's functions)</li><li>Sigma</li><li>Trajectory Preview</li><li>Tweakeroo</li><li>Wall-Jump</li><li>Wurst</li><li>Xray mods</li></ul>
+</div>
+    </main>
+
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const langToggle = document.getElementById('langToggle');
+        const body = document.body;
+        const logo = document.getElementById('ghwLogo');
+
+        function updateLogo(isLight) {
+            logo.src = isLight ? "logo_black.png" : "logo_green.png";
+        }
+
+        function updateLang(isEn) {
+            document.documentElement.lang = isEn ? 'en' : 'ru';
+            document.title = isEn ? 'GHW — Rules' : 'GHW — Правила';
+        }
+
+        if (localStorage.getItem('theme') === 'light') {
+            body.classList.add('light-theme');
+            updateLogo(true);
+        }
+
+        if (localStorage.getItem('lang') === 'en') {
+            body.classList.add('lang-en');
+            updateLang(true);
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const isLight = body.classList.toggle('light-theme');
+            updateLogo(isLight);
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        });
+
+        langToggle.addEventListener('click', () => {
+            const isEn = body.classList.toggle('lang-en');
+            updateLang(isEn);
+            localStorage.setItem('lang', isEn ? 'en' : 'ru');
+        });
+    </script>
+</body>
+</html>
