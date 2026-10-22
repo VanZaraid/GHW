@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Exthernal Highways</title>
+    <style>
+        /* ── Переменные тем ── */
+        :root {
+            --bg:            #fafafa;
+            --grid-minor:    #e4e4e4;
+            --grid-major:    #d2d2d2;
+            --grid-fill:     #fafafa;
+            --label-fill:    #111;
+            --label-shadow:  #fafafa;
+            --hover-fill:    #000;
+            --panel-bg:      rgba(255,255,255,0.98);
+            --panel-border:  #eee;
+            --panel-h2:      #222;
+            --panel-p:       #777;
+            --panel-close:   #aaa;
+            --panel-close-h: #333;
+            --panel-line:    #444;
+            --btn-bg:        white;
+            --btn-hover-bg:  #f8f8f8;
+            --btn-color:     #555;
+            --btn-shadow:    rgba(0,0,0,0.1);
+            --station-stroke: white;
+            --transfer-stroke: #222;
+        }
+
+        body.dark {
+            --bg:            #1a1a2e;
+            --grid-minor:    #252540;
+            --grid-major:    #2e2e50;
+            --grid-fill:     #1a1a2e;
+            --label-fill:    #e8e8f0;
+            --label-shadow:  #1a1a2e;
+            --hover-fill:    #ffffff;
+            --panel-bg:      rgba(26,26,46,0.97);
+            --panel-border:  #2e2e50;
+            --panel-h2:      #e8e8f0;
+            --panel-p:       #888;
+            --panel-close:   #555;
+            --panel-close-h: #ccc;
+            --panel-line:    #bbb;
+            --btn-bg:        #252540;
+            --btn-hover-bg:  #2e2e50;
+            --btn-color:     #aaa;
+            --btn-shadow:    rgba(0,0,0,0.4);
+            --station-stroke: #1a1a2e;
+            --transfer-stroke: #e8e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+
+        #y-height-label {
+            position: fixed; top: 20px; left: 20px;
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border);
+            padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 0.9em;
+            color: var(--panel-h2); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100; pointer-events: none;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        /* ── Поиск станций ── */
+        #search-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: min(340px, 75vw);
+        }
+        #station-search-input {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            color: var(--panel-h2);
+            font-size: 0.95em;
+            outline: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+        #station-search-input:focus {
+            border-color: #00BCE4;
+        }
+        #search-results-list {
+            display: none;
+            position: absolute;
+            top: 48px;
+            left: 0;
+            right: 0;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            z-index: 101;
+        }
+
+        /* ── Адаптивность плашки высоты и поиска для мобильных устройств ── */
+        @media (max-width: 600px) {
+            #y-height-label {
+                top: 10px;
+                left: 10px;
+                padding: 6px 10px;
+                font-size: 0.7em;
+                max-width: 40vw;
+            }
+            #search-container {
+                top: 10px;
+                left: 55%;
+                width: min(200px, 45vw);
+            }
+            #station-search-input {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+        }
+
+        #map-container {
+            width: 100vw; height: 100vh; overflow: hidden; cursor: grab;
+            position: relative; background-color: var(--bg);
+            transition: background-color 0.3s; touch-action: none;
+        }
+        #map-container.grabbing { cursor: grabbing; }
+
+        #metro-svg { width: 100%; height: 100%; transform-origin: 0 0; user-select: none; }
+
+        .metro-line {
+            stroke-width: 11; fill: none; stroke-linecap: round; stroke-linejoin: round;
+            transition: stroke-width 0.2s ease, filter 0.2s ease, opacity 0.3s ease;
+            cursor: pointer;
+        }
+        .monorail-dash { stroke-dasharray: 16 12; }
+
+        .station { transition: r 0.2s ease, stroke-width 0.2s ease, opacity 0.3s ease; }
+        .station-group { cursor: pointer; pointer-events: bounding-box; transition: opacity 0.3s ease; }
+        .station-group:hover .station { r: 12 !important; stroke-width: 4 !important; filter: drop-shadow(0 0 5px rgba(0,0,0,0.4)); }
+        .station-group:hover text { fill: var(--hover-fill); }
+        .station-label {
+            fill: var(--label-fill); font-size: 16px; font-weight: 700; pointer-events: none; transition: fill 0.3s ease, opacity 0.3s ease;
+        }
+
+        /* ── Подсветка и приглушение линий ── */
+        .metro-line.line-dimmed { opacity: 0.18; }
+        .metro-line.line-highlight { stroke-width: 16 !important; opacity: 1 !important; filter: drop-shadow(0 0 8px rgba(0,0,0,0.4)); }
+
+        /* ── Эффекты при активном навигаторе ── */
+        #map-container.routing-active .metro-line { opacity: 0.15; pointer-events: none; }
+        #map-container.routing-active .station-group { opacity: 0.15; pointer-events: none; }
+        #map-container.routing-active .station-group.route-node { opacity: 1; pointer-events: auto; }
+        #map-container.routing-active .station-group.route-node text { font-size: 18px; filter: drop-shadow(0 0 5px var(--bg)); }
+        
+        .route-path {
+            fill: none; stroke-linecap: round; stroke-linejoin: round;
+            stroke-width: 14; filter: drop-shadow(0 0 8px rgba(0,0,0,0.4));
+            animation: dashPulse 2s linear infinite;
+        }
+
+        /* ── Панели ── */
+        .side-panel {
+            position: fixed; background-color: var(--panel-bg);
+            padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid var(--panel-border); z-index: 100;
+            transition: background-color 0.3s, border-color 0.3s;
+            max-height: 85vh; overflow-y: auto;
+        }
+        #info-panel { bottom: 20px; right: 20px; width: 300px; display: none; }
+        #nav-panel { top: 70px; left: 20px; width: 320px; display: none; }
+
+        .side-panel h2 { margin-top: 0; margin-bottom: 12px; font-size: 1.3em; color: var(--panel-h2); }
+        .side-panel p { margin: 0 0 12px 0; color: var(--panel-p); font-size: 0.9em; }
+        .panel-close {
+            position: absolute; top: 15px; right: 15px;
+            cursor: pointer; font-size: 1.5em; line-height: 1; color: var(--panel-close);
+        }
+        .panel-close:hover { color: var(--panel-close-h); }
+
+        .line-list { list-style: none; padding: 0; margin: 0; }
+        .line-item { display: flex; align-items: center; margin-bottom: 10px; }
+        .line-color-swatch { width: 18px; height: 18px; border-radius: 50%; margin-right: 12px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3); }
+        .line-name { font-weight: 600; color: var(--panel-line); }
+
+        #controls { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 90; }
+        .control-btn {
+            width: 44px; height: 44px; background-color: var(--btn-bg); border: none; border-radius: 12px;
+            font-size: 1.4em; cursor: pointer; box-shadow: 0 4px 10px var(--btn-shadow);
+            display: flex; justify-content: center; align-items: center; color: var(--btn-color);
+            transition: background-color 0.3s, color 0.3s, transform 0.2s;
+        }
+        .control-btn:hover { background-color: var(--btn-hover-bg); transform: translateY(-2px); }
+        .control-btn.active-btn { background-color: #00BCE4; color: white; }
+
+        /* Элементы формы навигатора */
+        .nav-form-group { display: flex; flex-direction: column; margin-bottom: 12px; }
+        .nav-form-group label { font-size: 0.85em; font-weight: 600; color: var(--panel-p); margin-bottom: 4px; }
+        .nav-select {
+            width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border);
+            background-color: var(--bg); color: var(--panel-h2); font-size: 0.95em;
+            outline: none; transition: border-color 0.2s;
+        }
+        .nav-select:focus { border-color: #00BCE4; }
+        
+        .nav-buttons { display: flex; gap: 8px; margin-top: 16px; margin-bottom: 16px; }
+        .nav-btn {
+            flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: 600; transition: 0.2s; background-color: var(--grid-major); color: var(--panel-h2);
+        }
+        .nav-btn-primary { background-color: #00BCE4; color: white; }
+        .nav-btn-primary:hover { background-color: #0098b8; }
+        .nav-btn:hover:not(.nav-btn-primary) { filter: brightness(0.9); }
+
+        #nav-results { display: none; padding-top: 10px; border-top: 1px solid var(--panel-border); }
+        
+        /* ── Меню дальтоников ── */
+        #cb-menu {
+            position: absolute; right: 60px; top: 108px; background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15); display: none; width: 170px;
+        }
+        #cb-menu h4 { margin: 0 0 10px 0; font-size: 0.9em; color: var(--panel-h2); }
+        .cb-btn {
+            display: block; width: 100%; text-align: left; background: transparent; border: none;
+            padding: 7px 10px; color: var(--panel-line); cursor: pointer; border-radius: 6px;
+            margin-bottom: 4px; font-size: 0.85em; transition: 0.2s;
+        }
+        .cb-btn:hover { background: var(--btn-hover-bg); }
+        .cb-btn.active { font-weight: bold; background: var(--btn-hover-bg); color: var(--panel-h2); }
+
+        /* ── Всплывающая кнопка при клике на линию ── */
+        #line-popup {
+            position: fixed; display: none; align-items: center; gap: 10px;
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border);
+            border-radius: 12px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 200; transform: translate(-50%, -125%); white-space: nowrap;
+        }
+        #line-popup-swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        #line-popup-name { color: var(--panel-h2); font-weight: 700; font-size: 0.92em; }
+        #line-popup-btn {
+            border: none; border-radius: 8px; padding: 7px 13px; cursor: pointer;
+            background-color: var(--btn-bg); color: var(--btn-color); font-weight: 600; font-size: 0.88em;
+            box-shadow: 0 3px 8px var(--btn-shadow); transition: background-color 0.2s, color 0.3s;
+        }
+        #line-popup-btn:hover { background-color: var(--btn-hover-bg); }
+
+        /* ── Схемы (используются и в модальном окне, и в навигаторе) ── */
+        #line-diagram-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); z-index: 300; }
+        #line-diagram-panel {
+            background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px;
+            width: min(430px, 90vw); max-height: 82vh; overflow-y: auto; padding: 26px 28px 22px;
+            position: relative; box-shadow: 0 25px 60px rgba(0,0,0,0.35); transition: background-color 0.3s, border-color 0.3s;
+        }
+        
+        .diagram-track { position: relative; margin-left: 12px; padding-left: 24px; border-left: 5px solid var(--track-color, #999); }
+        .diagram-row { position: relative; padding: 9px 0 9px 16px; }
+        .diagram-node {
+            position: absolute; left: -34.5px; top: 13px; width: 16px; height: 16px; border-radius: 50%;
+            background-color: var(--track-color, #999); border: 3px solid var(--panel-bg);
+            box-shadow: 0 0 0 2px var(--track-color, #999); transition: border-color 0.3s;
+        }
+        .diagram-node--transfer { background-color: var(--panel-bg); }
+        .diagram-station-name { font-weight: 700; color: var(--panel-line); font-size: 0.98em; }
+        .diagram-row-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+        .diagram-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5); }
+        .diagram-mod { font-size: 0.76em; font-weight: 700; color: #c0392b; }
+        .diagram-mod-ok { font-size: 0.76em; font-weight: 700; color: #27ae60; }
+        .diagram-branch-label { margin: 4px 0 2px 16px; font-size: 0.8em; font-weight: 700; color: var(--panel-p); letter-spacing: 0.02em; }
+        .diagram-branch-wrap {
+            margin-left: 32px;
+            padding-left: 18px;
+            border-left: 3px dashed var(--track-color, #999);
+            opacity: 0.9;
+        }
+        
+        /* Специфика навигатора */
+        .nav-transfer-row {
+            margin: 8px 0 8px 12px; padding: 6px 12px; border-radius: 8px; background: var(--btn-hover-bg);
+            font-size: 0.85em; font-weight: 700; color: var(--panel-h2); display: flex; align-items: center; gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true">
+        <defs>
+            <filter id="protanopia"><feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+            <filter id="deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+            <filter id="tritanopia"><feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+        </defs>
+    </svg>
+
+    <div id="y-height-label">ВСЯ МАГИСТРАЛЬ СТОИТ НА Y:93 ВЫСОТЕ</div>
+
+    <!-- Поисковая строка -->
+    <div id="search-container">
+        <input type="text" id="station-search-input" placeholder="🔍 Поиск станции...">
+        <div id="search-results-list"></div>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="lang-toggle" title="English / Русский">🌐</button>
+        <button class="control-btn" id="nav-toggle" title="Навигатор">🧭</button>
+        <div style="position: relative;">
+            <button class="control-btn" id="colorblind-toggle" title="Режим для дальтоников">👁️</button>
+            <div id="cb-menu">
+                <h4 class="i18n-cbTitle">Режимы для дальтоников</h4>
+                <button class="cb-btn active" data-filter="none" id="cb-btn-none">Обычный</button>
+                <button class="cb-btn" data-filter="url(#protanopia)" id="cb-btn-prota">Протанопия</button>
+                <button class="cb-btn" data-filter="url(#deuteranopia)" id="cb-btn-deuta">Дейтеранопия</button>
+                <button class="cb-btn" data-filter="url(#tritanopia)" id="cb-btn-trita">Тританопия</button>
+            </div>
+        </div>
+        <button class="control-btn" id="zoom-in">+</button>
+        <button class="control-btn" id="zoom-out">−</button>
+        <button class="control-btn" id="zoom-reset">⟲</button>
+        <button class="control-btn" id="theme-toggle" title="Тёмная/светлая тема">🌙</button>
+    </div>
+
+    <div id="map-container">
+        <svg id="metro-svg" viewBox="0 0 2592 2592">
+            <defs>
+                <pattern id="grid-minor" width="54" height="54" patternUnits="userSpaceOnUse">
+                    <rect id="gm-fill" width="54" height="54" fill="#fafafa"/>
+                    <path d="M 54 0 L 0 0 0 54" fill="none" stroke="#e4e4e4" stroke-width="1" id="gm-stroke"/>
+                </pattern>
+                <pattern id="grid-major" width="270" height="270" patternUnits="userSpaceOnUse">
+                    <rect width="270" height="270" fill="url(#grid-minor)"/>
+                    <path d="M 270 0 L 0 0 0 270" fill="none" stroke="#d2d2d2" stroke-width="1.5" id="gM-stroke"/>
+                </pattern>
+            </defs>
+            <rect id="grid-background" x="-20000" y="-20000" width="60000" height="60000" fill="url(#grid-major)"/>
+            <g id="viewport-group">
+                <g id="lines-layer"></g>
+                <g id="routing-layer"></g> <g id="stations-layer"></g>
+            </g>
+        </svg>
+    </div>
+
+    <div id="info-panel" class="side-panel">
+        <span class="panel-close" id="close-info">&times;</span>
+        <h2 id="info-station-name">Название Станции</h2>
+        <p id="info-routes-label">Доступные маршруты:</p>
+        <ul class="line-list" id="info-line-list"></ul>
+        <div id="info-coords" style="margin-top:12px; font-size:0.95em; color:var(--panel-h2);"></div>
+        <div id="info-mod" style="display:none; margin-top:8px; padding:7px 12px; border-radius:8px; font-size:0.88em; font-weight:700; letter-spacing:0.01em;"></div>
+    </div>
+
+    <div id="nav-panel" class="side-panel">
+        <span class="panel-close" id="close-nav">&times;</span>
+        <h2 class="i18n-navTitle">Навигатор</h2>
+        <div class="nav-form-group">
+            <label class="i18n-navFrom">Откуда:</label>
+            <select id="nav-select-from" class="nav-select"></select>
+        </div>
+        <div class="nav-form-group">
+            <label class="i18n-navTo">Куда:</label>
+            <select id="nav-select-to" class="nav-select"></select>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn nav-btn-primary i18n-navBtn" id="nav-btn-find">Построить маршрут</button>
+            <button class="nav-btn i18n-navClear" id="nav-btn-clear">Сбросить</button>
+        </div>
+        <div id="nav-results"></div>
+    </div>
+
+    <div id="line-popup">
+        <div id="line-popup-swatch"></div>
+        <span id="line-popup-name"></span>
+        <button id="line-popup-btn">Линейная схема →</button>
+    </div>
+
+    <div id="line-diagram-overlay">
+        <div id="line-diagram-panel">
+            <span class="panel-close" id="line-diagram-close">&times;</span>
+            <h2 id="line-diagram-title"></h2>
+            <p id="line-diagram-subtitle">Все станции и пересадки маршрута</p>
+            <div id="line-diagram-body"></div>
+        </div>
+    </div>
+
+    <script>
+        let lang = 'ru';
+        const i18n = {
+            'ru': {
+                'yHeight': 'ВСЯ МАГИСТРАЛЬ СТОИТ НА Y:93 ВЫСОТЕ',
+                'cbTitle': 'Режим для дальтоников', 'cbNone': 'Обычный', 'cbProta': 'Протанопия', 'cbDeuta': 'Дейтеранопия', 'cbTrita': 'Тританопия',
+                'diagramSub': 'Все станции и пересадки маршрута', 'linePopupBtn': 'Линейная схема →', 'routesLabel': 'Доступные маршруты:',
+                'modReqTitle': 'Требуется модернизация:', 'req': 'требуется', 'notReq': 'не требуется',
+                'modReqBadge': 'требуется модернизация', 'modNotReqBadge': 'модернизация не требуется',
+                'navTitle': 'Навигатор', 'navFrom': 'Откуда:', 'navTo': 'Куда:', 'navBtn': 'Построить', 'navClear': 'Сбросить',
+                'navError': 'Маршрут не найден', 'navTransfer': 'Пересадка на',
+                'searchPlaceholder': '🔍 Поиск станции...'
+            },
+            'en': {
+                'yHeight': 'THE ENTIRE MAINLINE STANDS AT Y:93 HEIGHT',
+                'cbTitle': 'Colorblind Mode', 'cbNone': 'Normal', 'cbProta': 'Protanopia', 'cbDeuta': 'Deuteranopia', 'cbTrita': 'Tritanopia',
+                'diagramSub': 'All stations and transfers', 'linePopupBtn': 'Line diagram →', 'routesLabel': 'Available routes:',
+                'modReqTitle': 'Modernization required:', 'req': 'required', 'notReq': 'not required',
+                'modReqBadge': 'modernization required', 'modNotReqBadge': 'modernization not required',
+                'navTitle': 'Navigator', 'navFrom': 'From:', 'navTo': 'To:', 'navBtn': 'Find Route', 'navClear': 'Clear',
+                'navError': 'Route not found', 'navTransfer': 'Transfer to',
+                'searchPlaceholder': '🔍 Search station...'
+            }
+        };
+
+        const stationsData = {
+            'almaz_shahta_gs': { name: {ru: 'Шахта ГС', en: 'GC Mine Station'}, mcX: -1906, mcZ: -500, x: 648, y: 324, lines: ['blue'], labelPos: 'top' },
+            'downtown_02': { name: {ru: 'ДаунТаун 2.0', en: 'DownTown 2.0 Station'}, mcX: -751, mcZ: -840, x: 907.2, y: 324, lines: ['blue'], labelPos: 'top' },
+            'downtown': { name: {ru: 'ДаунТаун', en: 'DownTown Station'}, mcX: -553, mcZ: -763, x: 1123.2, y: 324, lines: ['blue'], labelPos: 'top' },
+            'spavn_ni': { name: {ru: 'Площадь Спавна', en: 'Spawn Square Station'}, mcX: -554, mcZ: -270, x: 1123.2, y: 756, lines: ['blue'], labelPos: 'left', mod: true },
+            'sudebnaya': { name: {ru: 'Спавн-на-Нулю', en: 'Spawn-on-Zero Station'}, mcX: 0, mcZ: -10, x: 1404, y: 972, lines: ['blue', 'green'], labelPos: 'bottom' },
+            'os3': { name: {ru: 'Орден Святой Земли', en: 'Holy Land Order Station'}, mcX: -962, mcZ: -670, x: 820.8, y: 518.4, lines: ['purple'], labelPos: 'bottom' },
+            'onostolgii': { name: {ru: 'Остров Ностальгии', en: 'Nostalgia Island Station'}, mcX: -322, mcZ: -594, x: 1252.8, y: 518.4, lines: ['purple'], labelPos: 'top' },
+            'kashkin': { name: {ru: 'Кашиик', en: 'Kashyyyk Station'}, mcX: -361, mcZ: -439, x: 1252.8, y: 648, lines: ['purple'], labelPos: 'bottom' },
+            'ind_rayon_gs': { name: {ru: 'Большой Промышленный Остров', en: 'Big Industrial Island Station'}, mcX: -24, mcZ: -600, x: 1512, y: 518.4, lines: ['purple', 'pink'], labelPos: 'top-right' },
+            'gold_farm': { name: {ru: 'Ферма золота', en: 'Gold Farm Station'}, mcX: 5, mcZ: -2013, x: 1339.2, y: 108, lines: ['pink'], labelPos: 'top' },
+            'china_base': { name: {ru: 'Китайская База', en: 'Chinese Base Station'}, mcX: 394, mcZ: -1195, x: 1620, y: 216, lines: ['pink'], labelPos: 'right' },
+            'portal_end': { name: {ru: 'Портал в Энд', en: 'The End Portal Station'}, mcX: -1006, mcZ: 1225, x: 648, y: 1188, lines: ['green'], labelPos: 'bottom' },
+            'geocity': { name: {ru: 'ГеоСити - Терминал', en: 'GeoCity Subway Terminal'}, mcX: 680, mcZ: -180, x: 1987.2, y: 756, lines: ['blue', 'purple', 'green', 'yellow', 'cyan', 'magenta', 'red'], labelPos: 'top-right' },
+            'chanki': { name: {ru: 'ЧанкИ', en: 'ChunkS Station'}, mcX: -1173, mcZ: 2540, x: 1080, y: 1404, lines: ['cyan'], labelPos: 'top', mod: true },
+            'kostovsk': { name: {ru: 'Костовск', en: 'Kostovsk Station'}, mcX: 307, mcZ: 4798, x: 1728, y: 1728, lines: ['red'], labelPos: 'right', mod: true },
+            'ssg': { name: {ru: 'ССГ', en: 'USC Station'}, mcX: -277, mcZ: 5507, x: 1620, y: 1987.2, lines: ['red'], labelPos: 'right' },
+            'arhei': { name: {ru: 'Архея', en: 'Arkheya Station'}, mcX: 481, mcZ: 2038, x: 2203.2, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
+            'hamistan': { name: {ru: 'Хайастан', en: 'Hayastan Station'}, mcX: 1454, mcZ: 2038, x: 2484, y: 1144.8, lines: ['yellow'], labelPos: 'top' },
+            'krepost_ssg': { name: {ru: 'Крепость ССГ', en: 'USC Fort Station'}, mcX: -141, mcZ: 5467, x: 1980, y: 1872, lines: ['red'], labelPos: 'right', mod: true },
+            'velikogo_naslediya': { name: {ru: 'Остров Великого Наследия', en: 'Great Legacy Island Station'}, mcX: 1078, mcZ: 934, x: 2140, y: 940, lines: ['magenta', 'monorail'], labelPos: 'top' },
+            'kultury': { name: {ru: 'Остров Культуры', en: 'Culture Island Station'}, mcX: 1078, mcZ: 1193, x: 2240, y: 1260, lines: ['magenta', 'monorail'], labelPos: 'right' }
+        };
+
+        const linesData = {
+            'blue': { color: '#0033A0', name: {ru: 'Синяя ветка', en: 'Blue Line'}, route: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', {x: 1123.2, y: 928.8}, 'sudebnaya', {x: 1636.8, y: 945.6}, {x: 1788, y: 756}, 'geocity'] },
+            'green': { color: '#00A859', name: {ru: 'Зеленая ветка', en: 'Green Line'}, route: ['portal_end', {x: 648, y: 972}, 'sudebnaya', {x: 1620, y: 928.8}, {x: 1771.2, y: 756}, 'geocity'] },
+            'purple_top': { color: '#8E44AD', name: {ru: 'Фиолетовая ветка', en: 'Violet Line'}, route: ['os3', {x: 1036.8, y: 518.4}, 'onostolgii', 'ind_rayon_gs', {x: 1684.8, y: 518.4}, {x: 1836, y: 756}, 'geocity'] },
+            'purple_bottom': { color: '#8E44AD', name: {ru: 'Фиолетовая ветка', en: 'Violet Line'}, route: [{x: 1036.8, y: 518.4}, {x: 1036.8, y: 648}, 'kashkin', {x: 1576.8, y: 648}, {x: 1684.8, y: 518.4}] },
+            'pink_main': { color: '#F482B6', name: {ru: 'Розовая ветка', en: 'Pink Line'}, route: ['gold_farm', {x: 1339.2, y: 216}, {x: 1339.2, y: 324}, {x: 1468.8, y: 432}, 'ind_rayon_gs'] },
+            'pink_branch': { color: '#F482B6', name: {ru: 'Розовая ветка', en: 'Pink Line'}, route: ['china_base', {x: 1404, y: 216}, {x: 1339.2, y: 216}] },
+            'cyan': { color: '#00BCE4', name: {ru: 'Бирюзовая ветка', en: 'Cyan Line'}, route: ['chanki', {x: 1785.6, y: 1404}, {x: 1800, y: 1320}, {x: 1926, y: 1152}, {x: 1956, y: 984}, 'geocity'] },
+            'red_main': { color: '#E3000F', name: {ru: 'Красная ветка', en: 'Red Line'}, route: ['geocity', {x: 1850, y: 1100}, {x: 1785.6, y: 1404}, 'kostovsk', {x: 1728, y: 1872}, 'ssg'] },
+            'red_branch': { color: '#E3000F', name: {ru: 'Красная ветка', en: 'Red Line'}, route: [{x: 1728, y: 1872}, 'krepost_ssg'] },
+            'yellow': { color: '#FFD100', name: {ru: 'Желтая ветка', en: 'Yellow Line'}, route: ['geocity', {x: 1972.8, y: 984}, {x: 1942.8, y: 1152}, 'arhei', 'hamistan'] },
+            'magenta': { color: '#FF00FF', name: {ru: 'Пурпурная ветка', en: 'Magenta Line'}, route: ['geocity', {x: 2000, y: 850}, {x: 2000, y: 940}, 'velikogo_naslediya', {x: 2240, y: 940}, 'kultury'] },
+            'monorail': { color: '#B19CD9', name: {ru: 'Монорельс', en: 'Monorail'}, route: ['velikogo_naslediya', {x: 2100, y: 940}, {x: 2100, y: 1260}, 'kultury'] }
+        };
+
+        const linesLayer = document.getElementById('lines-layer');
+        const routingLayer = document.getElementById('routing-layer');
+        const stationsLayer = document.getElementById('stations-layer');
+        const infoPanel = document.getElementById('info-panel');
+        const navPanel = document.getElementById('nav-panel');
+
+        function getLineColor(lineId) {
+            if (linesData[lineId]) return linesData[lineId].color;
+            const variantKey = Object.keys(linesData).find(key => key.startsWith(lineId + '_'));
+            return variantKey ? linesData[variantKey].color : '#999999';
+        }
+        function getLineRef(lineId) {
+            return linesData[lineId] || linesData[Object.keys(linesData).find(key => key.startsWith(lineId + '_'))];
+        }
+        function getLineFamily(lineId) {
+            if (lineId.startsWith('purple')) return 'purple';
+            if (lineId.startsWith('pink')) return 'pink';
+            if (lineId.startsWith('red')) return 'red';
+            return lineId;
+        }
+
+        function highlightStationLines(station) {
+            const allLines = document.querySelectorAll('.metro-line');
+            if (!station) {
+                allLines.forEach(line => {
+                    line.classList.remove('line-dimmed', 'line-highlight');
+                });
+                return;
+            }
+            const activeFamilies = station.lines.map(l => getLineFamily(l));
+            allLines.forEach(line => {
+                const isMatch = activeFamilies.some(fam => line.classList.contains(`logic-line-${fam}`));
+                if (isMatch) {
+                    line.classList.add('line-highlight');
+                    line.classList.remove('line-dimmed');
+                } else {
+                    line.classList.remove('line-highlight');
+                    line.classList.add('line-dimmed');
+                }
+            });
+        }
+
+        function generateRoundedPath(routeArray, radius = 40) {
+            const pts = routeArray.map(item => typeof item === 'string' ? stationsData[item] : item);
+            if (pts.length < 2) return '';
+            if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+            let d = `M ${pts[0].x} ${pts[0].y} `;
+            for (let i = 1; i < pts.length - 1; i++) {
+                const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+                const d0x = p0.x - p1.x, d0y = p0.y - p1.y;
+                const len0 = Math.sqrt(d0x * d0x + d0y * d0y), len2 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                if (len0 === 0 || len2 === 0) continue;
+                const r = Math.min(radius, len0 / 2.1, len2 / 2.1);
+                d += `L ${p1.x + (d0x / len0) * r} ${p1.y + (d0y / len0) * r} Q ${p1.x} ${p1.y} ${p1.x + ((p2.x - p1.x) / len2) * r} ${p1.y + ((p2.y - p1.y) / len2) * r} `;
+            }
+            return d + `L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+        }
+
+        const lineDiagrams = {
+            blue: {
+                name: {ru: 'Синяя ветка', en: 'Blue Line'},
+                color: '#0033A0',
+                stations: ['almaz_shahta_gs', 'downtown_02', 'downtown', 'spavn_ni', 'sudebnaya', 'geocity']
+            },
+            green: {
+                name: {ru: 'Зеленая ветка', en: 'Green Line'},
+                color: '#00A859',
+                stations: ['portal_end', 'sudebnaya', 'geocity']
+            },
+            purple: {
+                name: {ru: 'Фиолетовая ветка', en: 'Violet Line'},
+                color: '#8E44AD',
+                stations: ['os3', 'onostolgii', 'ind_rayon_gs', 'geocity'],
+                branch: {afterId: 'os3', label: {ru: 'ответвление через Кашиик', en: 'branch via Kashyyyk'}, stations: ['kashkin']}
+            },
+            pink: {
+                name: {ru: 'Розовая ветка', en: 'Pink Line'},
+                color: '#F482B6',
+                stations: ['gold_farm', 'ind_rayon_gs'],
+                branch: {afterId: 'gold_farm', label: {ru: 'ответвление к Китайской базе', en: 'branch to Chinese Base'}, stations: ['china_base']}
+            },
+            red: {
+                name: {ru: 'Красная ветка', en: 'Red Line'},
+                color: '#E3000F',
+                stations: ['geocity', 'kostovsk', 'ssg'],
+                branch: {afterId: 'kostovsk', label: {ru: 'ответвление к Крепости ССГ', en: 'branch to USC Fort'}, stations: ['krepost_ssg']}
+            },
+            cyan: {
+                name: {ru: 'Бирюзовая ветка', en: 'Cyan Line'},
+                color: '#00BCE4',
+                stations: ['chanki', 'geocity']
+            },
+            yellow: {
+                name: {ru: 'Желтая ветка', en: 'Yellow Line'},
+                color: '#FFD100',
+                stations: ['geocity', 'arhei', 'hamistan']
+            },
+            magenta: {
+                name: {ru: 'Пурпурная ветка', en: 'Magenta Line'},
+                color: '#FF00FF',
+                stations: ['geocity', 'velikogo_naslediya', 'kultury']
+            },
+            monorail: {
+                name: {ru: 'Монорельс', en: 'Monorail'},
+                color: '#B19CD9',
+                stations: ['velikogo_naslediya', 'kultury']
+            }
+        };
+
+        let currentLineForDiagram = null;
+        Object.keys(linesData).forEach(lineId => {
+            const line = linesData[lineId];
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const logicClass = getLineFamily(lineId);
+            path.setAttribute('class', `metro-line logic-line-${logicClass}${lineId === 'monorail' ? ' monorail-dash' : ''}`);
+            path.setAttribute('stroke', line.color);
+            path.setAttribute('d', generateRoundedPath(line.route));
+            
+            path.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (document.getElementById('map-container').classList.contains('routing-active')) return;
+                
+                currentLineForDiagram = logicClass;
+                const color = getLineColor(logicClass);
+                const ref = getLineRef(logicClass);
+                
+                document.getElementById('line-popup-swatch').style.backgroundColor = color;
+                document.getElementById('line-popup-name').textContent = ref.name[lang];
+                document.getElementById('line-popup-btn').textContent = i18n[lang].linePopupBtn;
+                
+                const popup = document.getElementById('line-popup');
+                popup.style.display = 'flex';
+                popup.style.left = e.clientX + 'px';
+                popup.style.top = e.clientY + 'px';
+            });
+
+            linesLayer.appendChild(path);
+        });
+
+        document.getElementById('line-popup-btn').addEventListener('click', e => {
+            e.stopPropagation();
+            document.getElementById('line-popup').style.display = 'none';
+            if (!currentLineForDiagram) return;
+            openLineDiagram(currentLineForDiagram);
+        });
+
+        function diagramStationRow(stationId, currentFamily) {
+            const st = stationsData[stationId];
+            const otherLines = st.lines.filter(l => getLineFamily(l) !== currentFamily);
+            const dots = otherLines.map(l =>
+                `<span class="diagram-dot" style="background-color:${getLineColor(l)}" title="${getLineRef(l).name[lang]}"></span>`
+            ).join('');
+            const modBadge = st.mod
+                ? `<span class="diagram-mod">${i18n[lang].modReqBadge}</span>`
+                : `<span class="diagram-mod-ok">${i18n[lang].modNotReqBadge}</span>`;
+
+            return `
+                <div class="diagram-row">
+                    <div class="diagram-node${otherLines.length ? ' diagram-node--transfer' : ''}"></div>
+                    <div class="diagram-station-name">${st.name[lang]}</div>
+                    ${(otherLines.length || st.mod) ? `<div class="diagram-row-meta">${dots}${modBadge}</div>` : ''}
+                </div>`;
+        }
+
+        function openLineDiagram(family) {
+            const info = lineDiagrams[family];
+            if (!info) return;
+
+            const title = document.getElementById('line-diagram-title');
+            title.textContent = info.name[lang];
+            title.style.color = info.color;
+            document.getElementById('line-diagram-subtitle').textContent = i18n[lang].diagramSub;
+
+            const body = document.getElementById('line-diagram-body');
+            let html = `<div class="diagram-track" style="--track-color:${info.color}">`;
+
+            info.stations.forEach(stId => {
+                html += diagramStationRow(stId, family);
+
+                if (info.branch && info.branch.afterId === stId) {
+                    html += `<div class="diagram-branch-label">↳ ${info.branch.label[lang]}</div>`;
+                    html += `<div class="diagram-branch-wrap" style="--track-color:${info.color}">`;
+                    info.branch.stations.forEach(bId => {
+                        html += diagramStationRow(bId, family);
+                    });
+                    html += `</div>`;
+                }
+            });
+
+            html += `</div>`;
+            body.innerHTML = html;
+            document.getElementById('line-diagram-overlay').style.display = 'flex';
+        }
+
+        function closeLineDiagram() {
+            document.getElementById('line-diagram-overlay').style.display = 'none';
+        }
+
+        document.getElementById('line-diagram-close').addEventListener('click', closeLineDiagram);
+        document.getElementById('line-diagram-overlay').addEventListener('click', e => {
+            if (e.target.id === 'line-diagram-overlay') closeLineDiagram();
+        });
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLineDiagram();
+        });
+
+        const graph = {}; 
+        
+        function getNodeId(point) {
+            return typeof point === 'string' ? point : `${point.x},${point.y}`;
+        }
+
+        Object.keys(stationsData).forEach(id => graph[id] = []);
+
+        Object.keys(linesData).forEach(lineId => {
+            let prevNode = null, currentPath = [];
+            linesData[lineId].route.forEach((point) => {
+                const nodeId = getNodeId(point);
+                if (!graph[nodeId]) graph[nodeId] = [];
+                currentPath.push(point);
+
+                if (prevNode) {
+                    const family = getLineFamily(lineId);
+                    
+                    // Расчёт расстояния в БЛОКАХ Minecraft на основе реальных координат станций
+                    let edgeMcLen = 0;
+                    if (stationsData[prevNode] && stationsData[nodeId]) {
+                        const stA = stationsData[prevNode];
+                        const stB = stationsData[nodeId];
+                        edgeMcLen = Math.hypot(stA.mcX - stB.mcX, stA.mcZ - stB.mcZ);
+                    } else {
+                        // Для промежуточных гео-точек
+                        let edgeLenPixel = 0;
+                        for (let i = 0; i < currentPath.length - 1; i++) {
+                            let pA = typeof currentPath[i] === 'string' ? stationsData[currentPath[i]] : currentPath[i];
+                            let pB = typeof currentPath[i+1] === 'string' ? stationsData[currentPath[i+1]] : currentPath[i+1];
+                            edgeLenPixel += Math.hypot(pA.x - pB.x, pA.y - pB.y);
+                        }
+                        edgeMcLen = edgeLenPixel * 2; // Приблизительный коэффициент для точек
+                    }
+
+                    graph[prevNode].push({ node: nodeId, line: family, path: [...currentPath], mcLen: edgeMcLen });
+                    graph[nodeId].push({ node: prevNode, line: family, path: [...currentPath].reverse(), mcLen: edgeMcLen });
+                }
+                prevNode = nodeId; 
+                currentPath = [point];
+            });
+        });
+
+        function findRoute(startId, endId) {
+            if (startId === endId) return [];
+            
+            const dist = {}, prev = {};
+            const queue = new Set(Object.keys(graph));
+            
+            for (let id in graph) { 
+                dist[id] = Infinity; 
+                prev[id] = null; 
+            }
+            dist[startId] = 0;
+
+            while (queue.size > 0) {
+                let u = null, minDist = Infinity;
+                for (let id of queue) {
+                    if (dist[id] < minDist) { minDist = dist[id]; u = id; }
+                }
+                if (u === null || u === endId) break;
+                queue.delete(u);
+
+                graph[u].forEach(edge => {
+                    if (!queue.has(edge.node)) return;
+                    
+                    let weight = edge.mcLen;
+                    const isTransfer = prev[u] && prev[u].line !== edge.line;
+                    
+                    if (isTransfer && !stationsData[u]) return;
+                    
+                    if (isTransfer) weight += 500; // Штраф за пересадку
+
+                    if (dist[u] + weight < dist[edge.node]) {
+                        dist[edge.node] = dist[u] + weight;
+                        prev[edge.node] = { node: u, line: edge.line, path: edge.path, mcLen: edge.mcLen };
+                    }
+                });
+            }
+
+            const path = []; let curr = endId;
+            while (prev[curr]) {
+                path.unshift({ from: prev[curr].node, to: curr, line: prev[curr].line, geom: prev[curr].path, mcLen: prev[curr].mcLen });
+                curr = prev[curr].node;
+            }
+            return path.length > 0 ? path : null;
+        }
+
+        // ── РАСЧЁТ ВРЕМЕНИ В ПУТИ ──
+        function calculateTime(pathEdges, legs) {
+            // 1. Дистанция на магистрали (32 блока в секунду)
+            let totalMcBlocks = 0;
+            pathEdges.forEach(edge => totalMcBlocks += (edge.mcLen || 0));
+            const travelTimeSeconds = totalMcBlocks / 32;
+
+            // 2. Остановки / проезд станций (6 секунд на каждую станцию)
+            let totalStationsVisited = 0;
+            legs.forEach(leg => {
+                const validStations = leg.nodes.filter(id => stationsData[id]);
+                totalStationsVisited += new Set(validStations).size;
+            });
+            const stationsTimeSeconds = totalStationsVisited * 6;
+
+            // 3. Задержка на пересадку (15 секунд за пересадку)
+            const transfersCount = legs.length - 1;
+            const transfersTimeSeconds = transfersCount * 15;
+
+            const totalSeconds = Math.round(travelTimeSeconds + stationsTimeSeconds + transfersTimeSeconds);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            if (minutes > 0) {
+                return lang === 'ru' ? `${minutes} мин ${seconds} сек` : `${minutes} m ${seconds} s`;
+            }
+            return lang === 'ru' ? `${seconds} сек` : `${seconds} s`;
+        }
+
+        function drawRoute(pathEdges) {
+            routingLayer.innerHTML = '';
+            document.querySelectorAll('.route-node').forEach(el => el.classList.remove('route-node'));
+            if (!pathEdges || pathEdges.length === 0) return;
+
+            document.getElementById('map-container').classList.add('routing-active');
+
+            const legs = [];
+            let currLeg = { line: pathEdges[0].line, geom: [...pathEdges[0].geom], nodes: [pathEdges[0].from, pathEdges[0].to] };
+            
+            for(let i = 0; i < pathEdges.length; i++) {
+                if (i === 0) continue;
+
+                if (pathEdges[i].line === currLeg.line) {
+                    currLeg.geom.push(...pathEdges[i].geom.slice(1));
+                    currLeg.nodes.push(pathEdges[i].to);
+                } else {
+                    legs.push(currLeg);
+                    currLeg = { line: pathEdges[i].line, geom: [...pathEdges[i].geom], nodes: [pathEdges[i].from, pathEdges[i].to] };
+                }
+            }
+            legs.push(currLeg);
+
+            legs.forEach(leg => {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('class', 'route-path');
+                pathEl.setAttribute('stroke', getLineColor(leg.line));
+                pathEl.setAttribute('d', generateRoundedPath(leg.geom));
+                routingLayer.appendChild(pathEl);
+                
+                leg.nodes.forEach(st => {
+                    if (stationsData[st]) { 
+                        const stNode = document.querySelector(`.station-group[data-id="${st}"]`);
+                        if(stNode) stNode.classList.add('route-node');
+                    }
+                });
+            });
+
+            const transfersCount = legs.length - 1;
+            
+            let trText = '';
+            if (lang === 'ru') {
+                if (transfersCount === 1) trText = '1 пересадка';
+                else if (transfersCount > 1 && transfersCount < 5) trText = transfersCount + ' пересадки';
+                else trText = transfersCount + ' пересадок';
+            } else {
+                trText = transfersCount === 1 ? '1 transfer' : transfersCount + ' transfers';
+            }
+
+            const formattedTime = calculateTime(pathEdges, legs);
+
+            let html = `
+                <div style="margin-bottom: 10px; font-size: 0.88em; color: var(--panel-h2); background: var(--btn-hover-bg); padding: 8px 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                    <span>⏱️ ~${formattedTime}</span>
+                    <span style="opacity: 0.8; font-size: 0.9em;">🔄 ${trText}</span>
+                </div>
+            `;
+
+            legs.forEach((leg, idx) => {
+                const color = getLineColor(leg.line);
+                const lineName = getLineRef(leg.line).name[lang];
+                
+                if (idx > 0) {
+                    html += `<div class="nav-transfer-row"><div class="diagram-dot" style="background:${color}"></div>${i18n[lang].navTransfer} ${lineName}</div>`;
+                }
+                
+                html += `<div class="diagram-track" style="--track-color:${color}">`;
+                
+                const validStations = leg.nodes.filter(id => stationsData[id]);
+                const uniqueStations = [...new Set(validStations)];
+
+                uniqueStations.forEach((stId, nIdx) => {
+                    const isTransfer = (nIdx === 0 && idx > 0) || (nIdx === uniqueStations.length - 1 && idx < legs.length - 1);
+                    html += `<div class="diagram-row"><div class="diagram-node${isTransfer ? ' diagram-node--transfer' : ''}"></div><div class="diagram-station-name">${stationsData[stId].name[lang]}</div></div>`;
+                });
+                html += `</div>`;
+            });
+
+            const resDiv = document.getElementById('nav-results');
+            resDiv.innerHTML = html;
+            resDiv.style.display = 'block';
+
+            const startNode = stationsData[pathEdges[0].from];
+            centerMapOn(startNode.x, startNode.y);
+        }
+
+        function clearRoute() {
+            routingLayer.innerHTML = '';
+            document.getElementById('map-container').classList.remove('routing-active');
+            document.querySelectorAll('.route-node').forEach(el => el.classList.remove('route-node'));
+            document.getElementById('nav-results').style.display = 'none';
+        }
+
+        function populateNavSelects() {
+            const selFrom = document.getElementById('nav-select-from');
+            const selTo = document.getElementById('nav-select-to');
+            const prevFrom = selFrom.value, prevTo = selTo.value;
+            selFrom.innerHTML = ''; selTo.innerHTML = '';
+            
+            const sortedIds = Object.keys(stationsData).sort((a,b) => stationsData[a].name[lang].localeCompare(stationsData[b].name[lang]));
+            sortedIds.forEach(id => {
+                selFrom.add(new Option(stationsData[id].name[lang], id));
+                selTo.add(new Option(stationsData[id].name[lang], id));
+            });
+            if(prevFrom && stationsData[prevFrom]) selFrom.value = prevFrom;
+            if(prevTo && stationsData[prevTo]) selTo.value = prevTo;
+        }
+
+        document.getElementById('nav-toggle').addEventListener('click', () => {
+            const isVis = navPanel.style.display === 'block';
+            navPanel.style.display = isVis ? 'none' : 'block';
+            document.getElementById('nav-toggle').classList.toggle('active-btn', !isVis);
+            if (!isVis) { 
+                infoPanel.style.display = 'none'; 
+                highlightStationLines(null);
+                populateNavSelects(); 
+            }
+        });
+        document.getElementById('close-nav').addEventListener('click', () => {
+            navPanel.style.display = 'none'; document.getElementById('nav-toggle').classList.remove('active-btn');
+        });
+
+        document.getElementById('nav-btn-find').addEventListener('click', () => {
+            const from = document.getElementById('nav-select-from').value;
+            const to = document.getElementById('nav-select-to').value;
+            if (from === to) return alert(i18n[lang].navError);
+            const path = findRoute(from, to);
+            if (path) drawRoute(path); else alert(i18n[lang].navError);
+        });
+
+        document.getElementById('nav-btn-clear').addEventListener('click', clearRoute);
+
+        let currentStationId = null;
+        function drawStations() {
+            stationsLayer.innerHTML = ''; 
+            Object.keys(stationsData).forEach(stationId => {
+                const station = stationsData[stationId];
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'station-group');
+                group.setAttribute('data-id', stationId);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('class', 'station');
+                circle.setAttribute('cx', station.x); circle.setAttribute('cy', station.y);
+                if (station.lines.length > 1) {
+                    circle.setAttribute('r', 11); circle.setAttribute('fill', 'white'); circle.setAttribute('stroke', '#222'); circle.setAttribute('stroke-width', 3);
+                } else {
+                    circle.setAttribute('r', 8); circle.setAttribute('fill', getLineColor(station.lines[0])); circle.setAttribute('stroke-width', 2);
+                }
+
+                const tempT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tempT.setAttribute('class', 'station-label'); tempT.textContent = station.name[lang]; tempT.setAttribute('opacity','0');
+                document.getElementById('viewport-group').appendChild(tempT);
+                const tWidth = tempT.getBBox().width;
+                document.getElementById('viewport-group').removeChild(tempT);
+
+                const dotR = 6, dotGap = 4, dotStep = 16, nLines = station.lines.length, dotsW = nLines * dotStep - dotGap;
+                let dx = 18, dy = 6;
+                if (station.labelPos === 'bottom') { dx = 0; dy = 32; } else if (station.labelPos === 'top') { dx = 0; dy = -20; }
+                else if (station.labelPos === 'left') { dx = -20; dy = 6; } else if (station.labelPos === 'right') { dx = 20; dy = 6; }
+                else if (station.labelPos === 'top-right') { dx = 18; dy = -18; }
+                
+                let dotStartX, textX, textY = station.y + dy;
+                if (station.labelPos === 'top' || station.labelPos === 'bottom') { dotStartX = station.x - (dotsW + 8 + tWidth) / 2; textX = dotStartX + dotsW + 8; }
+                else if (station.labelPos === 'left') { dotStartX = station.x + dx - 4 - (dotsW + 8 + tWidth); textX = dotStartX + dotsW + 8; }
+                else { dotStartX = station.x + dx; textX = dotStartX + dotsW + 8; }
+
+                station.lines.forEach((l, i) => {
+                    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    dot.setAttribute('cx', dotStartX + dotR + i * dotStep); dot.setAttribute('cy', textY - 5);
+                    dot.setAttribute('r', dotR); dot.setAttribute('fill', getLineColor(l));
+                    group.appendChild(dot);
+                });
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('class', 'station-label'); text.textContent = station.name[lang];
+                text.setAttribute('x', textX); text.setAttribute('y', textY);
+                group.appendChild(circle); group.appendChild(text); stationsLayer.appendChild(group);
+
+                group.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (document.getElementById('map-container').classList.contains('routing-active')) return;
+                    currentStationId = stationId;
+                    
+                    highlightStationLines(station);
+
+                    document.getElementById('info-station-name').textContent = station.name[lang];
+                    const ul = document.getElementById('info-line-list'); ul.innerHTML = '';
+                    station.lines.forEach(l => {
+                        ul.innerHTML += `<li class="line-item"><div class="line-color-swatch" style="background:${getLineColor(l)}"></div><span class="line-name">${getLineRef(l).name[lang]}</span></li>`;
+                    });
+                    document.getElementById('info-coords').innerHTML = `<strong>X:</strong> ${station.mcX} &nbsp;&nbsp; <strong>Z:</strong> ${station.mcZ}`;
+                    const mod = document.getElementById('info-mod'); mod.style.display = 'block';
+                    if (station.mod) {
+                        mod.innerHTML = `🔧 <span style="opacity:0.7;font-weight:400">${i18n[lang].modReqTitle}</span> <span style="color:#c0392b">${i18n[lang].req}</span>`;
+                        mod.style.background = 'rgba(192,57,43,0.1)'; mod.style.border = '1px solid rgba(192,57,43,0.25)';
+                    } else {
+                        mod.innerHTML = `✅ <span style="opacity:0.7;font-weight:400">${i18n[lang].modReqTitle}</span> <span style="color:#27ae60">${i18n[lang].notReq}</span>`;
+                        mod.style.background = 'rgba(39,174,96,0.1)'; mod.style.border = '1px solid rgba(39,174,96,0.25)';
+                    }
+                    mod.style.color = isDark ? '#ddd' : '#333';
+                    infoPanel.style.display = 'block'; navPanel.style.display = 'none'; document.getElementById('nav-toggle').classList.remove('active-btn');
+                });
+            });
+            applyTheme(isDark);
+        }
+
+        document.getElementById('close-info').addEventListener('click', () => {
+            infoPanel.style.display = 'none';
+            highlightStationLines(null);
+        });
+
+        document.getElementById('lang-toggle').addEventListener('click', () => {
+            lang = lang === 'ru' ? 'en' : 'ru';
+            document.getElementById('y-height-label').textContent = i18n[lang].yHeight;
+            document.getElementById('station-search-input').placeholder = i18n[lang].searchPlaceholder;
+            document.querySelector('.i18n-cbTitle').textContent = i18n[lang].cbTitle;
+            document.getElementById('cb-btn-none').textContent = i18n[lang].cbNone;
+            document.getElementById('cb-btn-prota').textContent = i18n[lang].cbProta;
+            document.getElementById('cb-btn-deuta').textContent = i18n[lang].cbDeuta;
+            document.getElementById('cb-btn-trita').textContent = i18n[lang].cbTrita;
+            document.querySelector('.i18n-navTitle').textContent = i18n[lang].navTitle;
+            document.querySelector('.i18n-navFrom').textContent = i18n[lang].navFrom;
+            document.querySelector('.i18n-navTo').textContent = i18n[lang].navTo;
+            document.getElementById('nav-btn-find').textContent = i18n[lang].navBtn;
+            document.getElementById('nav-btn-clear').textContent = i18n[lang].navClear;
+            populateNavSelects(); drawStations();
+            if (document.getElementById('nav-results').style.display === 'block') document.getElementById('nav-btn-find').click();
+            if (document.getElementById('line-diagram-overlay').style.display === 'flex' && currentLineForDiagram) openLineDiagram(currentLineForDiagram);
+        });
+
+        const svg = document.getElementById('metro-svg'), container = document.getElementById('map-container');
+        let viewBox = { x: 0, y: 0, w: 2592, h: 2592 }, isPanning = false, startP = {x:0, y:0}, scale = 1;
+        
+        function updateVB() { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`); }
+        function applyZoom(newScale, cx, cy) {
+            const rect = container.getBoundingClientRect();
+            const mx = viewBox.x + (cx - rect.left)*(viewBox.w/container.clientWidth), my = viewBox.y + (cy - rect.top)*(viewBox.h/container.clientHeight);
+            const zF = scale/newScale; viewBox.w *= zF; viewBox.h *= zF;
+            viewBox.x = mx - (cx - rect.left)*(viewBox.w/container.clientWidth); viewBox.y = my - (cy - rect.top)*(viewBox.h/container.clientHeight);
+            scale = newScale; updateVB();
+        }
+        function centerMapOn(x, y) {
+            viewBox.x = x - viewBox.w/2; viewBox.y = y - viewBox.h/2; updateVB();
+        }
+
+        container.addEventListener('mousedown', e => { if (!e.target.closest('.station-group') && !e.target.closest('.control-btn')) { isPanning = true; startP = {x: e.clientX, y: e.clientY}; container.classList.add('grabbing'); }});
+        window.addEventListener('mousemove', e => { if(isPanning){ viewBox.x -= (e.clientX - startP.x)*(viewBox.w/container.clientWidth); viewBox.y -= (e.clientY - startP.y)*(viewBox.h/container.clientHeight); updateVB(); startP = {x: e.clientX, y: e.clientY}; }});
+        window.addEventListener('mouseup', () => { isPanning = false; container.classList.remove('grabbing'); });
+        container.addEventListener('wheel', e => { e.preventDefault(); applyZoom(Math.max(0.3, Math.min(3, scale - e.deltaY*0.001)), e.clientX, e.clientY); }, {passive: false});
+
+        let initPinchDist = null, initScale = 1;
+        container.addEventListener('touchstart', e => {
+            if(e.touches.length === 1 && !e.target.closest('.station-group')) { isPanning = true; startP = {x: e.touches[0].clientX, y: e.touches[0].clientY}; }
+            else if(e.touches.length === 2) { isPanning = false; initPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); initScale = scale; }
+        }, {passive: false});
+        container.addEventListener('touchmove', e => {
+            if(isPanning && e.touches.length === 1) { e.preventDefault(); viewBox.x -= (e.touches[0].clientX - startP.x)*(viewBox.w/container.clientWidth); viewBox.y -= (e.touches[0].clientY - startP.y)*(viewBox.h/container.clientHeight); updateVB(); startP = {x: e.touches[0].clientX, y: e.touches[0].clientY}; }
+            else if(e.touches.length === 2 && initPinchDist) { e.preventDefault(); const curDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); applyZoom(Math.max(0.3, Math.min(3, initScale * (curDist/initPinchDist))), (e.touches[0].clientX+e.touches[1].clientX)/2, (e.touches[0].clientY+e.touches[1].clientY)/2); }
+        }, {passive: false});
+        container.addEventListener('touchend', () => { isPanning = false; initPinchDist = null; });
+
+        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(Math.max(0.3, Math.min(3, scale*1.3)), container.clientWidth/2, container.clientHeight/2));
+        document.getElementById('zoom-out').addEventListener('click', () => applyZoom(Math.max(0.3, Math.min(3, scale*0.7)), container.clientWidth/2, container.clientHeight/2));
+        document.getElementById('zoom-reset').addEventListener('click', () => { viewBox = {x: 0, y: 0, w: 2592, h: 2592}; scale = 1; updateVB(); });
+
+        document.getElementById('colorblind-toggle').addEventListener('click', e => { e.stopPropagation(); const m = document.getElementById('cb-menu'); m.style.display = m.style.display==='block'?'none':'block'; });
+        
+        document.addEventListener('click', e => { 
+            if(!e.target.closest('#cb-menu') && e.target.id!=='colorblind-toggle') {
+                document.getElementById('cb-menu').style.display = 'none'; 
+            }
+            if(!e.target.closest('#line-popup') && !e.target.closest('.metro-line')) {
+                document.getElementById('line-popup').style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.cb-btn').forEach(btn => btn.addEventListener('click', e => {
+            document.querySelectorAll('.cb-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active');
+            svg.style.filter = e.currentTarget.dataset.filter === 'none' ? 'none' : e.currentTarget.dataset.filter;
+        }));
+
+        let isDark = false;
+        function applyTheme(dark) {
+            document.body.classList.toggle('dark', dark);
+            document.getElementById('gm-fill').setAttribute('fill', dark ? '#1a1a2e' : '#fafafa');
+            document.getElementById('gm-stroke').setAttribute('stroke', dark ? '#252540' : '#e4e4e4');
+            document.getElementById('gM-stroke').setAttribute('stroke', dark ? '#2e2e50' : '#d2d2d2');
+            const sh = dark ? '#1a1a2e' : '#fafafa';
+            document.querySelectorAll('.station-label').forEach(el => { el.setAttribute('fill', dark?'#e8e8f0':'#111'); el.style.textShadow = `2px 2px 0 ${sh}, -2px -2px 0 ${sh}, 2px -2px 0 ${sh}, -2px 2px 0 ${sh}, 0 2px 0 ${sh}, 0 -2px 0 ${sh}, 2px 0 0 ${sh}, -2px 0 0 ${sh}, 0 0 4px ${sh}`; });
+            document.querySelectorAll('.station').forEach(el => {
+                if(el.getAttribute('fill')==='white' || el.getAttribute('fill')==='#1a1a2e') { el.setAttribute('fill', dark?'#1a1a2e':'white'); el.setAttribute('stroke', dark?'#e8e8f0':'#222'); }
+                else el.setAttribute('stroke', dark?'#1a1a2e':'white');
+            });
+            document.getElementById('theme-toggle').textContent = dark ? '☀️' : '🌙';
+            const mod = document.getElementById('info-mod'); if(mod) mod.style.color = dark ? '#ddd' : '#333';
+        }
+        document.getElementById('theme-toggle').addEventListener('click', () => { isDark = !isDark; applyTheme(isDark); });
+
+        // ── ПОИСК СТАНЦИЙ ──
+        const searchInput = document.getElementById('station-search-input');
+        const searchResults = document.getElementById('search-results-list');
+
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toLowerCase();
+            searchResults.innerHTML = '';
+            
+            if (!val) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            const matches = Object.keys(stationsData).filter(id => 
+                stationsData[id].name[lang].toLowerCase().includes(val)
+            );
+
+            if (matches.length === 0) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            matches.forEach(id => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 10px 14px; cursor: pointer; color: var(--panel-h2); font-weight: 600; font-size: 0.9em; border-bottom: 1px solid var(--panel-border); transition: background 0.2s;';
+                item.textContent = stationsData[id].name[lang];
+                
+                item.addEventListener('mouseenter', () => item.style.background = 'var(--btn-hover-bg)');
+                item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+
+                item.addEventListener('click', () => {
+                    const st = stationsData[id];
+                    centerMapOn(st.x, st.y);
+                    
+                    const stGroup = document.querySelector(`.station-group[data-id="${id}"]`);
+                    if (stGroup) stGroup.dispatchEvent(new Event('click'));
+                    
+                    searchResults.style.display = 'none';
+                    searchInput.value = '';
+                });
+                
+                searchResults.appendChild(item);
+            });
+
+            searchResults.style.display = 'block';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#search-container')) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        drawStations(); populateNavSelects();
+    </script>
+</body>
+</html>
