@@ -200,7 +200,7 @@
     </div>
 
     <main class="container">
-        <a href="/"><img src="logo_dark.png" alt="logo" class="logo" id="logo"></a>
+        <a href="/"><img src="/logo_dark.png" alt="logo" class="logo" id="logo"></a>
 
 <div data-lang="ru">
 <h1>Правила GHW</h1>
@@ -260,8 +260,8 @@
         const logo = document.getElementById('logo');
 
         function updateLogo(isLight) {
-            logo.src = isLight ? "logo_light.png" : "logo_dark.png";
-        }
+    logo.src = isLight ? "/logo_light.png" : "/logo_dark.png";
+}
 
         function updateLang(isEn) {
             document.documentElement.lang = isEn ? 'en' : 'ru';
