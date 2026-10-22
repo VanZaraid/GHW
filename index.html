@@ -195,7 +195,7 @@
     </div>
 
     <div class="top-space">
-        <img src="logo_green.png" alt="GHW Logo" class="logo" id="ghwLogo">
+        <img src="logo_dark.png" alt="logo" class="logo" id="logo">
     </div>
 
     <div class="center-block">
@@ -221,10 +221,10 @@
         const themeToggle = document.getElementById('themeToggle');
         const langToggle = document.getElementById('langToggle');
         const body = document.body;
-        const logo = document.getElementById('ghwLogo');
+        const logo = document.getElementById('logo');
         
-        const darkLogoSrc = "logo_green.png";
-        const lightLogoSrc = "logo_black.png";
+        const darkLogoSrc = "logo_dark.png";
+        const lightLogoSrc = "logo_light.png";
 
         function updateLogo(isLight) {
             logo.src = isLight ? lightLogoSrc : darkLogoSrc;
