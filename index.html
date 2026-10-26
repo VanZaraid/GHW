@@ -74,13 +74,25 @@
             right: 0;
             bottom: calc(50vh + 105px);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: 16px;
+            padding: 0 20px;
         }
         .logo {
             width: 160px;
             height: auto;
             display: block;
+        }
+        .description {
+            max-width: 480px;
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 16px;
+            line-height: 1.4;
+            opacity: 0.85;
+            transition: color 0.25s ease;
         }
         .center-block {
             position: absolute;
@@ -170,6 +182,9 @@
             .logo {
                 width: 130px;
             }
+            .description {
+                font-size: 14px;
+            }
             .center-block {
                 position: static;
                 transform: none;
@@ -197,6 +212,10 @@
 
     <div class="top-space">
         <img src="logo_dark.png" alt="logo" class="logo" id="logo">
+        <p class="description">
+            <span data-lang="ru">Старейший анархический, классический, строительский, технический, гидравлический Minecraft-сервер</span>
+            <span data-lang="en">The oldest anarchy, classic, building, technical, hydraulic Minecraft server</span>
+        </p>
     </div>
 
     <div class="center-block">
